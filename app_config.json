@@ -1,0 +1,499 @@
+{
+    "models": {
+        "main_contract": {
+            "table_name": "biz_main_contracts",
+            "model_label": "主合同台账",
+            "field_meta": {
+                "project_name": {
+                    "label": "项目名称",
+                    "type": "text"
+                },
+                "manager": {
+                    "label": "项目负责人",
+                    "type": "text"
+                },
+                "biz_code": {
+                    "label": "合同编号",
+                    "type": "text"
+                },
+                "project_code": {
+                    "label": "项目编号",
+                    "type": "text"
+                },
+                "archive_date": {
+                    "label": "合同归档日期",
+                    "type": "date"
+                },
+                "contract_status": {
+                    "label": "合同状态",
+                    "type": "text"
+                },
+                "client_name": {
+                    "label": "甲方名称",
+                    "type": "text"
+                },
+                "project_attr": {
+                    "label": "项目属性",
+                    "type": "text"
+                },
+                "contract_nature": {
+                    "label": "合同性质",
+                    "type": "text"
+                },
+                "location": {
+                    "label": "项目所在地区",
+                    "type": "text"
+                },
+                "overview": {
+                    "label": "项目概况",
+                    "type": "text"
+                },
+                "project_stage": {
+                    "label": "项目阶段",
+                    "type": "text"
+                },
+                "contract_amount": {
+                    "label": "合同金额",
+                    "type": "num"
+                },
+                "cooperation_status": {
+                    "label": "合作情况",
+                    "type": "text"
+                },
+                "contract_terms": {
+                    "label": "合同条款",
+                    "type": "text"
+                },
+                "est_contract_amount": {
+                    "label": "预计签订合同额",
+                    "type": "num"
+                },
+                "est_sign_date": {
+                    "label": "预计签约时间",
+                    "type": "date"
+                },
+                "est_invoice_this_year": {
+                    "label": "当年预计开票金额",
+                    "type": "num"
+                },
+                "plan_invoice_date": {
+                    "label": "计划开票时间",
+                    "type": "date"
+                },
+                "responsible_person": {
+                    "label": "责任人",
+                    "type": "text"
+                },
+                "recognized_revenue": {
+                    "label": "确认收入",
+                    "type": "num"
+                },
+                "operating_revenue": {
+                    "label": "营业收入",
+                    "type": "num"
+                },
+                "remarks": {
+                    "label": "备注",
+                    "type": "text"
+                },
+                "associated_subs": {
+                    "label": "关联合同",
+                    "type": "text",
+                    "is_virtual": true
+                },
+                "invoiced_this_year": {
+                    "label": "当年开票金额",
+                    "type": "num",
+                    "is_virtual": true
+                },
+                "last_invoice_date": {
+                    "label": "最近开票日期",
+                    "type": "date",
+                    "is_virtual": true
+                },
+                "last_collected_amount": {
+                    "label": "到账金额",
+                    "type": "num",
+                    "is_virtual": true
+                },
+                "last_collected_date": {
+                    "label": "最近到账日期",
+                    "type": "date",
+                    "is_virtual": true
+                },
+                "total_invoiced": {
+                    "label": "累计开票金额",
+                    "type": "num",
+                    "is_virtual": true
+                },
+                "total_collected": {
+                    "label": "累计到账金额",
+                    "type": "num",
+                    "is_virtual": true
+                },
+                "ar_days": {
+                    "label": "应收账款期(天)",
+                    "type": "num",
+                    "is_virtual": true
+                },
+                "total_ar": {
+                    "label": "应收账款",
+                    "type": "num"
+                },
+                "ar_invoiced_uncollected": {
+                    "label": "应收账款(已开未到)",
+                    "type": "num"
+                },
+                "uncollected_contract_amount": {
+                    "label": "未到账合同额",
+                    "type": "num"
+                },
+                "unbilled_contract_amount": {
+                    "label": "剩余未开票合同额",
+                    "type": "num"
+                },
+                "collection_progress": {
+                    "label": "合同收费完成进度",
+                    "type": "percent"
+                },
+                "is_provisioned": {
+                    "label": "是否计提归档",
+                    "type": "text",
+                    "readonly": true
+                },
+                "provision_time": {
+                    "label": "计提时间",
+                    "type": "datetime",
+                    "readonly": true
+                }
+            },
+            "formulas": {
+                "total_ar": "contract_amount - total_collected",
+                "ar_invoiced_uncollected": "total_invoiced - total_collected",
+                "uncollected_contract_amount": "contract_amount - total_collected",
+                "unbilled_contract_amount": "contract_amount - total_invoiced",
+                "collection_progress": "(total_collected / contract_amount) * 100"
+            },
+            "column_mapping": {
+                "project_name": [
+                    "项目名称"
+                ],
+                "manager": [
+                    "项目负责人"
+                ],
+                "biz_code": [
+                    "合同编号"
+                ],
+                "project_code": [
+                    "项目编号"
+                ],
+                "archive_date": [
+                    "合同归档日期"
+                ],
+                "contract_status": [
+                    "合同状态"
+                ],
+                "client_name": [
+                    "甲方名称"
+                ],
+                "project_attr": [
+                    "项目属性"
+                ],
+                "contract_nature": [
+                    "合同性质"
+                ],
+                "location": [
+                    "项目所在地区"
+                ],
+                "overview": [
+                    "项目概况"
+                ],
+                "project_stage": [
+                    "项目阶段"
+                ],
+                "contract_amount": [
+                    "合同金额"
+                ],
+                "cooperation_status": [
+                    "合作情况"
+                ],
+                "contract_terms": [
+                    "合同条款"
+                ],
+                "est_contract_amount": [
+                    "预计签订合同额"
+                ],
+                "est_sign_date": [
+                    "预计签约时间"
+                ],
+                "est_invoice_this_year": [
+                    "当年预计开票金额"
+                ],
+                "plan_invoice_date": [
+                    "计划开票时间"
+                ],
+                "responsible_person": [
+                    "责任人"
+                ],
+                "recognized_revenue": [
+                    "确认收入"
+                ],
+                "operating_revenue": [
+                    "营业收入"
+                ],
+                "remarks": [
+                    "备注"
+                ],
+                "associated_subs": [
+                    "关联合同"
+                ],
+                "invoiced_this_year": [
+                    "当年开票金额"
+                ],
+                "last_invoice_date": [
+                    "最近开票日期"
+                ],
+                "last_collected_amount": [
+                    "到账金额"
+                ],
+                "last_collected_date": [
+                    "最近到账日期"
+                ],
+                "total_invoiced": [
+                    "累计开票金额"
+                ],
+                "total_collected": [
+                    "累计到账金额"
+                ],
+                "ar_days": [
+                    "应收账款期(天)"
+                ],
+                "total_ar": [
+                    "应收账款"
+                ],
+                "ar_invoiced_uncollected": [
+                    "应收账款(已开未到)"
+                ],
+                "uncollected_contract_amount": [
+                    "未到账合同额"
+                ],
+                "unbilled_contract_amount": [
+                    "剩余未开票合同额"
+                ],
+                "collection_progress": [
+                    "合同收费完成进度"
+                ],
+                "is_provisioned": [
+                    "是否计提归档"
+                ],
+                "provision_time": [
+                    "计提时间"
+                ]
+            }
+        },
+        "sub_contract": {
+            "table_name": "biz_sub_contracts",
+            "model_label": "分包合同台账",
+            "field_meta": {
+                "book_main_code": { "label": "EBM编号(账面归属)", "type": "text" },
+                "actual_main_code": { "label": "主合同编号(实际归属)", "type": "text" },
+                "biz_code": { "label": "分包合同编号", "type": "text" },
+                "sub_company_name": { "label": "分包单位", "type": "text" },
+                "sub_manager": { "label": "分包负责人", "type": "text" },
+                "sub_type": { "label": "分包类型/专业", "type": "text" },
+                "sign_date": { "label": "签约日期", "type": "date" },
+                "sub_amount": { "label": "分包合同金额(元)", "type": "num" },
+                "tax_rate": { "label": "税率", "type": "select", "options": ["6%", "9%", "3%", "1%", "0%"] },
+                "retention_ratio": { "label": "质保金比例", "type": "percent" },
+                "is_back_to_back": { "label": "是否背靠背", "type": "select", "options": ["是", "否"], "default": "是" },
+                "settlement_status": { "label": "结算状态", "type": "select", "options": ["履行中", "已结算", "强制终止"] },
+                "operator": { "label": "经办人", "type": "text" },
+                "ap_days": { "label": "付款期(天)", "type": "num" },
+
+                "is_archived": { "label": "是否已归档", "type": "text", "default": "否", "readonly": true },
+
+                "project_code": { "label": "项目编号", "type": "text", "is_virtual": true },
+                "project_name": { "label": "项目名称", "type": "text", "is_virtual": true },
+                "client_name": { "label": "甲方单位", "type": "text", "is_virtual": true },
+                "main_contract_amount": { "label": "主合同金额(元)", "type": "num", "is_virtual": true },
+                "main_total_collected": { "label": "主合同累计收费(元)", "type": "num", "is_virtual": true },
+                "total_invoiced_from_sub": { "label": "累计收到发票金额(元)", "type": "num", "is_virtual": true },
+                "total_paid": { "label": "累计支付(元)", "type": "num", "is_virtual": true },
+                
+                "sub_ratio": { "label": "分包占比", "type": "percent" },
+                "payment_progress": { "label": "支付进度", "type": "percent" },
+                "unpaid_amount": { "label": "应付账款(元)", "type": "num" }
+            },
+            "formulas": {
+                "sub_ratio": "(sub_amount / main_contract_amount) * 100",
+                "payment_progress": "(total_paid / sub_amount) * 100",
+                "unpaid_amount": "sub_amount - total_paid"
+            },
+            "column_mapping": {
+                "book_main_code": ["EBM编号", "账面归属"],
+                "actual_main_code": ["主合同编号", "实际归属"],
+                "biz_code": ["分包合同编号", "合同号"],
+                "sub_company_name": ["分包单位", "乙方名称"],
+                "sub_manager": ["分包负责人"],
+                "sub_type": ["分包类型", "专业"],
+                "sign_date": ["签约日期", "签订日期"],
+                "sub_amount": ["分包合同金额", "合同价"],
+                "tax_rate": ["税率"],
+                "retention_ratio": ["质保金比例", "扣款比例"],
+                "is_back_to_back": ["是否背靠背"],
+                "settlement_status": ["结算状态"],
+                "operator": ["经办人"],
+                "ap_days": ["付款期", "信用期"],
+                "is_archived": ["是否已归档"]
+            }
+        },
+        "enterprise": {
+            "table_name": "biz_enterprises",
+            "model_label": "往来单位资信库",
+            "field_meta": {
+                "biz_code": {
+                    "label": "单位编号",
+                    "type": "text",
+                    "readonly": true
+                },
+                "company_name": {
+                    "label": "单位全称",
+                    "type": "text",
+                    "required": true
+                },
+                "uscc": {
+                    "label": "社会信用代码",
+                    "type": "text"
+                },
+                "role_type": {
+                    "label": "业务角色",
+                    "type": "select",
+                    "options": [
+                        "甲方",
+                        "总包方",
+                        "分包方",
+                        "供应商",
+                        "劳务方",
+                        "其他"
+                    ]
+                },
+                "bank_name": {
+                    "label": "开户银行",
+                    "type": "text"
+                },
+                "bank_account": {
+                    "label": "银行账号",
+                    "type": "text"
+                },
+                "tax_address": {
+                    "label": "开票地址",
+                    "type": "text"
+                },
+                "tax_phone": {
+                    "label": "开票电话",
+                    "type": "text"
+                },
+                "contact_person": {
+                    "label": "主要联系人",
+                    "type": "text"
+                },
+                "contact_phone": {
+                    "label": "联系电话",
+                    "type": "text"
+                },
+                "legal_rep": {
+                    "label": "法人代表",
+                    "type": "text"
+                },
+                "credit_level": {
+                    "label": "信用评级",
+                    "type": "select",
+                    "options": [
+                        "AAA (极优)",
+                        "AA (优)",
+                        "A (良)",
+                        "B (风险)",
+                        "C (黑名单)"
+                    ],
+                    "default": "A (良)"
+                },
+                "status": {
+                    "label": "合作状态",
+                    "type": "select",
+                    "options": [
+                        "启用",
+                        "停用"
+                    ],
+                    "default": "启用"
+                },
+                "remarks": {
+                    "label": "备注说明",
+                    "type": "text"
+                }
+            },
+            "column_mapping": {
+                "biz_code": [
+                    "单位编号",
+                    "供应商编码",
+                    "客户编码"
+                ],
+                "company_name": [
+                    "单位名称",
+                    "企业名称",
+                    "公司名称",
+                    "收款单位",
+                    "付款单位",
+                    "单位全称"
+                ],
+                "uscc": [
+                    "信用代码",
+                    "纳税人识别号",
+                    "税号",
+                    "社会信用代码"
+                ],
+                "bank_name": [
+                    "开户行",
+                    "开户银行",
+                    "收款银行"
+                ],
+                "bank_account": [
+                    "账号",
+                    "银行账号",
+                    "收款账号"
+                ],
+                "contact_person": [
+                    "联系人",
+                    "业务对接人",
+                    "主要联系人"
+                ],
+                "contact_phone": [
+                    "联系电话",
+                    "电话",
+                    "手机号"
+                ],
+                "role_type": [
+                    "业务角色"
+                ],
+                "tax_address": [
+                    "开票地址"
+                ],
+                "tax_phone": [
+                    "开票电话"
+                ],
+                "legal_rep": [
+                    "法人代表"
+                ],
+                "credit_level": [
+                    "信用评级"
+                ],
+                "status": [
+                    "合作状态"
+                ],
+                "remarks": [
+                    "备注说明"
+                ]
+            },
+            "formulas": {}
+        }
+    }
+}

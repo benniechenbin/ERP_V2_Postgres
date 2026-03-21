@@ -1,0 +1,34 @@
+# Python 虚拟环境与缓存 (Anaconda 相关)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.conda/
+.jupyter/
+
+# React 前端依赖 (极其重要，拦截几万个碎文件！)
+node_modules/
+build/
+dist/
+.env
+
+
+# 苹果系统与代码编辑器隐藏文件
+.DS_Store
+.idea/
+.vscode/
+
+# 测试文件
+tests/
+# 备份文件
+backup/
+# 数据文件
+data/
+# 后端数据文件
+backend/data/
+
+# 压缩文件
+*.tar
+*.zip
+*.rar

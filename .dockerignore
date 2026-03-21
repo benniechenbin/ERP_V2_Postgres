@@ -1,0 +1,33 @@
+# --- 1. 编程环境与缓存 ---
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.ipynb_checkpoints
+venv/
+.venv/
+.conda/
+
+# --- 2. 本地数据与临时文件 ---
+# 排除你本地测试用的合同和 PDF
+tests/
+test.docx
+test_ai_parsing.py
+# 排除本地上传的附件，让朋友从零开始
+data/uploads/*
+# 排除本地数据库生成的日志或临时数据
+*.log
+*.sqlite
+
+# --- 3. 敏感信息 (非常重要) ---
+# 如果你希望朋友用他自己的 API Key，就排除这个
+# .env 
+
+# --- 4. IDE 与系统垃圾 ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+.git/
+.gitignore
