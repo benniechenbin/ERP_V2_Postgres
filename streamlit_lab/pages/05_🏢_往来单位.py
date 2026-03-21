@@ -29,12 +29,16 @@ def render_enterprise_form(mode="edit", initial_data=None, model_name="enterpris
     
     # 1. 标题与基础数据准备
     form_title = "🆕 新增往来单位" if mode == "add" else f"✏️ 编辑单位信息: {initial_data.get('biz_code', '')}"
-    current_data = initial_data if mode == "edit" else {'biz_code': crud.generate_biz_code(target_table, prefix_char="ENT")}
     
+    # 获取正确的 biz_code
+    if mode == "add":
+        new_code = crud.generate_biz_code(model_name=model_name, prefix_char="ENT")
+        current_data = {'biz_code': new_code}
+    else:
+        current_data = initial_data
+
     # 2. 🟢 统一常量控制网关：定义隐藏和只读字段
-    # 彻底隐藏系统底层字段以及给 AI 预留的 extra_props，保持前端纯净
     FORM_HIDDEN_FIELDS = ['id', 'deleted_at', 'source_file', 'sheet_name', 'extra_props', 'created_at', 'updated_at']
-    # 如果是编辑模式，锁死业务编号防篡改
     FORM_READONLY_FIELDS = ['biz_code'] if mode == "edit" else []
 
     # 3. 🟢 直接呼叫偷懒神器画表单！
@@ -94,39 +98,18 @@ target_table = all_models[selected_model].get("table_name", "biz_enterprises")
 c_search, c_add = st.columns([3, 1])
    
 with c_search:
-    
     keyword = st.text_input("快速搜索", placeholder="输入名称或税号...", label_visibility="collapsed")
-    show_deleted = st.checkbox("🗑️ 查看回收站 (已删除单位)") 
+    # ✂️ 删除了 "查看回收站" 的 checkbox
+    
 with c_add:
     if st.button("➕ 新增单位", type="primary", width="stretch"):
         render_enterprise_form(mode="add", model_name=selected_model, target_table=target_table)
 
 st.divider()
 
-# --- 🟢 V2.0 查询逻辑 (去重版) ---
+# --- 🟢 V2.0 查询逻辑 (纯净版，只看存活数据) ---
 try:
-    delete_condition = "deleted_at IS NOT NULL" if show_deleted else "deleted_at IS NULL"
-    
-    if keyword:
-        # 🟢 修复：将公司名称 (company_name)、信用代码 (uscc)、联系人等关键字段都加入模糊搜索
-        query = f"""
-            SELECT * FROM "{target_table}" 
-            WHERE {delete_condition} 
-            AND (
-                biz_code LIKE %s OR 
-                company_name LIKE %s OR 
-                uscc LIKE %s OR
-                contact_person LIKE %s OR
-                extra_props::text LIKE %s
-            )
-            ORDER BY updated_at DESC
-        """
-        # 有 5 个 %s，所以 params 里要传 5 个 keyword
-        search_term = f"%{keyword}%"
-        df_result = pd.read_sql_query(query, sql_engine, params=(search_term, search_term, search_term, search_term, search_term))
-    else:
-        query = f'SELECT * FROM "{target_table}" WHERE {delete_condition} ORDER BY updated_at DESC LIMIT 100'
-        df_result = pd.read_sql_query(query, sql_engine)
+    df_result = crud.fetch_dynamic_records(selected_model, keyword)
 except Exception as e:
     st.error(f"查询失败: {e}")
     df_result = pd.DataFrame()
@@ -140,7 +123,7 @@ if not df_result.empty:
     rules = cfg.load_data_rules()
     field_meta = rules.get("models", {}).get(selected_model, {}).get("field_meta", {})
     
-    # 自动生成类似 {"company_name": "单位名称", "uscc": "统一信用代码"} 的翻译字典
+    # 自动生成类似 {"company_name": "单位名称"} 的翻译字典
     rename_map = {col: meta.get("label", col) for col, meta in field_meta.items()}
     rename_map.update({
         "biz_code": "单位编号",
@@ -165,35 +148,31 @@ if not df_result.empty:
         
         st.info(f"📍 当前选中: **{current_biz_code}**")
         
-        # 🟢 回收站模式
-        if show_deleted:
-            if st.button("♻️ 恢复此单位 (撤销删除)", type="primary", width="stretch"):
-                sql = f'UPDATE "{target_table}" SET deleted_at = NULL WHERE id = %s'
-                success, msg = execute_raw_sql(sql, (int(selected_row['id']),))
+        # 🟢 极简操作区：只有编辑、历史和删除
+        ac1, ac2, ac3 = st.columns([1, 1, 1]) 
+        with ac1:
+            if st.button("📝 修改信息", type="primary", width="stretch"):
+                render_enterprise_form(mode="edit", initial_data=selected_row, model_name=selected_model, target_table=target_table)
+        with ac2:
+            if st.button("🕰️ 查看操作历史", width="stretch"):
+                show_audit_log_dialog(current_biz_code, selected_model)
+        with ac3:
+            if st.button("🗑️ 删除此单位 (软删除)", type="secondary", width="stretch"):
+                # 🟢 1. 获取当前操作人（防呆设计）
+                current_user = st.session_state.get('user_name', 'System')
+                
+                # 🟢 2. 调用后端正规军，把 current_user 传进去！
+                success, msg = crud.soft_delete_project(
+                    project_id=int(selected_row['id']), 
+                    table_name=target_table,
+                    operator_name=current_user
+                )
+                
                 if success:
-                    st.success(f"✅ [{current_biz_code}] 已成功恢复！")
+                    st.success("✅ 数据已移入回收站。")
                     st.rerun()
                 else:
-                    st.error(f"恢复失败: {msg}")
-                    
-        # 🟢 正常模式
-        else:
-            ac1, ac2, ac3 = st.columns([1, 1, 1]) 
-            with ac1:
-                if st.button("📝 修改信息", type="primary", width="stretch"):
-                    render_enterprise_form(mode="edit", initial_data=selected_row, model_name=selected_model, target_table=target_table)
-            with ac2:
-                if st.button("🕰️ 查看操作历史", width="stretch"):
-                    show_audit_log_dialog(current_biz_code, selected_model)
-            with ac3:
-                if st.button("🗑️ 删除此单位 (软删除)", type="secondary", width="stretch"):
-                    sql = f'UPDATE "{target_table}" SET deleted_at = CURRENT_TIMESTAMP WHERE id = %s'
-                    success, msg = execute_raw_sql(sql, (int(selected_row['id']),))
-                    if success:
-                        st.success("✅ 数据已移入回收站。")
-                        st.rerun()
-                    else:
-                        st.error(f"删除失败: {msg}")
+                    st.error(msg)
 else:
     st.info("数据为空，或未找到匹配项。")
 

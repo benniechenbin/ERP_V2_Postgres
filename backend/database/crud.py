@@ -22,13 +22,12 @@ from backend.database.crud_finance import (
 
 # 3. 导入系统与后勤辅助
 from backend.database.crud_sys import (
-    save_contract_file,
     get_attachment_counts,
     update_biz_code_cascade,
     soft_delete_project,
     restore_project,
     get_deleted_projects,
-    log_import_operation
+    log_job_operation
 )
 
 

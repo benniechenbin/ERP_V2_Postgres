@@ -11,6 +11,8 @@ sys.path.insert(0, str(ROOT_DIR))
 from backend.database.db_engine import execute_raw_sql
 from backend.config import config_manager as cfg
 import backend.database as db
+from backend.database import crud
+from backend import services as svc
 
 import sidebar_manager
 import debug_kit 
@@ -192,18 +194,52 @@ sidebar_manager.render_sidebar()
 def contract_form_dialog(existing_data=None):
     if ui and hasattr(ui, 'render_dynamic_form'):
         
-        # 🟢 1. 附件上传提前到最上方 (为后续 AI 解析铺路)
-        st.subheader("📎 附件归档 (AI合同解析依赖)")
-        file_category = st.selectbox(
-            "🗂️ 附件类别 (极其重要：将决定 AI 是否介入解析)", 
-            ["主合同文本 (需 AI 解析)", "补充协议/变更单 (需 AI 解析)", "工程图纸", "往来函件", "结算单", "其他附件"]
-        )
+        # ==========================================
+        # 🟢 1. 附件归档与 AI 智能解析区
+        # ==========================================
+        st.subheader("🤖 AI 合同智能解析")
         
-        uploaded_files = st.file_uploader("支持 PDF, Word, 图片等格式 (可多选)", accept_multiple_files=True)
+        # 🆙 第一层：拖拽上传区 (单独占满整行，视觉焦点)
+        uploaded_files = st.file_uploader("📂 请拖拽或选择待解析合同 (支持 PDF/Word)", accept_multiple_files=True)
         
-        # 预留 AI 解析按钮的位置（后续可在这里添加：if st.button("🤖 自动解析并填表"): ...）
+        # ⬇️ 第二层：操作区 (左长右短，完美对齐)
+        c_cat, c_btn = st.columns([3, 1])
         
-        st.markdown("---") # 用分割线把附件区和表单区隔开
+        with c_cat:
+            # 使用 collapsed 隐藏 label，让下拉框和右侧的按钮在同一水平线上绝对对齐
+            file_category = st.selectbox(
+                "🗂️ 附件类别", 
+                ["主合同文本 (需 AI 解析)", "补充协议/变更单 (需 AI 解析)", "工程图纸", "往来函件", "结算单", "其他附件"],
+                label_visibility="collapsed" 
+            )
+            
+        with c_btn:
+            # 只有上传了文件，且类别属于“需 AI 解析”时，按钮才可用
+            ai_ready = uploaded_files is not None and len(uploaded_files) > 0 and "(需 AI 解析)" in file_category
+            
+            # 按钮与左侧下拉框高度完美匹配
+            if st.button("✨ 一键 AI 提取", type="primary", disabled=not ai_ready, use_container_width=True):
+                with st.spinner("🧠 AI 正在极速阅读合同条款，请稍候约 15 秒..."):
+                    import time
+                    time.sleep(2) # 【预留钩子】明天这里将替换为真正的 AI 调用！
+                    
+                    # 【模拟 AI 的返回结果】
+                    mock_ai_result = {
+                        "project_name": "AI自动识别：经十一路项目",
+                        "client_name": "济南万科企业有限公司",
+                        "contract_amount": 1500000,
+                        "contract_nature": "施工总承包"
+                    }
+                    
+                    # 将 AI 结果合并到当前数据字典中
+                    if existing_data is None:
+                        existing_data = {}
+                    existing_data.update(mock_ai_result)
+                    
+                    st.success("🎉 提取完毕！下方表单已更新。")
+                    # 无需 rerun，渲染引擎会自动捕捉 existing_data 的变化
+
+        st.markdown("---") # 分割线
 
         # 🟢 2. 智能判断：是新增还是编辑？
         is_edit = existing_data is not None
@@ -253,11 +289,10 @@ def contract_form_dialog(existing_data=None):
             if success:
                 # 🟢 3. 处理刚刚上传的附件
                 if uploaded_files:
-                    from backend.database.crud_sys import save_contract_file
                     target_table = cfg.get_model_config("main_contract").get("table_name", "biz_main_contracts")
                     for uf in uploaded_files:
                         # 🟢 把前端选好的类别传给底层！
-                        save_contract_file(final_biz_code, uf, target_table, file_category=file_category)
+                        svc.save_attachment(final_biz_code, uf, target_table, file_category=file_category)
                     ui.show_toast_success(f"主合同及【{file_category}】已成功保存！")
                 else:
                     ui.show_toast_success("主合同数据保存成功！")
@@ -276,8 +311,31 @@ def yearly_archive_dialog():
     st.warning("⚠️ 警告：此操作会将系统内所有【已计提】的合同和项目进行归档（软删除）。\n\n请务必确保本年度所有账务已核对完毕！")
     confirm = st.text_input("请输入 '确认结转' 以继续执行：")
     if st.button("🚨 确认执行结转", type="primary", disabled=(confirm != "确认结转"), use_container_width=True):
-        success, msg = execute_yearly_accrual_archive()
+        
+        # 🟢 1. 提取当前操作人
+        current_user = st.session_state.get('user_name', 'System')
+        
+        # 🟢 2. 执行底层结转逻辑 (注意这里需要补上 db. 前缀，确保调用正确)
+        success, msg = db.execute_yearly_accrual_archive()
+        
         if success:
+            # 🟢 3. 智能提取成功数量并写入 job_log
+            import re
+            # 假设后端的 msg 返回的是 "成功结转 15 份合同"
+            nums = re.findall(r'\d+', msg)
+            success_count = int(nums[0]) if nums else 0
+            
+            try:
+                # 调用我们在 crud_sys 里写的适配器，记录宏观日志
+                db.log_job_operation(
+                    operator=current_user,
+                    file_name="前端手动触发",         # 借用 file_name 字段存来源
+                    import_type="main_contract",    # 借用 import_type 存目标模型
+                    success_count=success_count
+                )
+            except Exception as e:
+                print(f"写入结转日志失败: {e}")
+
             if ui and hasattr(ui, 'show_toast_success'): ui.show_toast_success(msg)
             trigger_refresh()
             st.rerun()
@@ -681,16 +739,24 @@ else:
             st.markdown("#### 🗑️ 合同作废")
             if st.button("🗑️ 软删除该合同 (移入回收站)", use_container_width=True):
                 # 🚨 删除前的第一步：呼叫风控锁！
-                passed, error_msg = check_main_contract_clearance(selected_biz_code)
+                passed, error_msg = crud.check_main_contract_clearance(selected_biz_code)
                 
                 if not passed:
                     # 拦截：弹出具体是哪些分包没结清
                     st.error(error_msg) 
                 else:
                     # 放行：执行具体的软删除逻辑
+                    current_user = st.session_state.get('user_name', 'System')
                     target_table = cfg.get_model_config("main_contract").get("table_name", "biz_main_contracts")
-                    sql = f'UPDATE "{target_table}" SET deleted_at = CURRENT_TIMESTAMP WHERE biz_code = %s'
-                    success, msg = db.execute_raw_sql(sql, (selected_biz_code,))
+                    
+                    # 🟢 核心修复：通过 biz_code 从 df_main 中精准提取物理 id
+                    target_id = int(df_main[df_main['biz_code'] == selected_biz_code]['id'].iloc[0])
+                    
+                    success, msg = crud.soft_delete_project(
+                        project_id=target_id, 
+                        table_name=target_table,
+                        operator_name=current_user
+                    )
                     
                     if success:
                         st.toast("已安全移入系统全局回收站", icon="🗑️")

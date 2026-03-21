@@ -4,7 +4,7 @@ from backend.services import excel_service
 from backend.utils import formatters
 from backend.database import db_engine, schema, crud
 from backend.config import config_manager as cfg 
-
+from backend import services as svc
 warnings.filterwarnings('ignore', category=UserWarning, module='openpyxl')
 
 def run_import_process(
@@ -14,7 +14,8 @@ def run_import_process(
     manual_mapping=None,         
     import_mode="append",    
     relation_config=None,
-    header_overrides=None    # 🟢 修正1：由前端作为参数安全传入
+    header_overrides=None,
+    operator="System"
 ):
     """
     [V2.0 纯粹执行引擎] 只负责执行前端确认过的 manual_mapping
@@ -37,7 +38,7 @@ def run_import_process(
     if import_mode == 'overwrite':
         conn = None
         try:
-            conn = engine.get_connection()
+            conn = db_engine.get_connection()
             cursor = conn.cursor()
             cursor.execute(f'DELETE FROM "{table_name}" WHERE source_file = %s AND sheet_name = %s', 
                            (file_name, target_sheet_name))
@@ -100,7 +101,28 @@ def run_import_process(
         if res: total_inserted += 1
         else: errors.append(f"第{idx+2}行失败: {msg}")
 
+    # ==========================================
+    # 🟢 终极闭环：写入宏观任务日志 (sys_job_logs)
+    # ==========================================
+    fail_count = len(df) - total_inserted
+    # 将 list 格式的 errors 转化为 dict 格式，方便存入 JSONB
+    error_details_dict = {f"Error_{i+1}": err for i, err in enumerate(errors)} if errors else None
+    
+    try:
+        crud.log_job_operation(
+            operator=operator,
+            file_name=file_name,
+            import_type=model_name,
+            success_count=total_inserted,
+            fail_count=fail_count,
+            error_details=error_details_dict
+        )
+    except Exception as log_e:
+        print(f"⚠️ 宏观日志记录失败 (不阻断主流程): {log_e}")
+
+    # ==========================================
     # 返回结果拼装
+    # ==========================================
     if errors:
         error_summary = "\n".join(errors[:5]) 
         if total_inserted > 0:
@@ -113,7 +135,7 @@ def run_import_process(
 def _verify_prime_id_exists(biz_code, table_name):
     conn = None
     try:
-        conn = engine.get_connection()
+        conn = db_engine.get_connection()
         cursor = conn.cursor()
         cursor.execute(f'SELECT 1 FROM "{table_name}" WHERE biz_code = %s', (str(biz_code),))
         return cursor.fetchone() is not None

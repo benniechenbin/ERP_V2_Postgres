@@ -1,60 +1,38 @@
-import os
-from datetime import datetime
+from pathlib import Path
+from backend.database.db_engine import get_connection, UPLOAD_DIR
 
-# 🟢 从统一入口导入
-from backend.database import get_connection, UPLOAD_DIR
-
-# =========================================================
-# 模块：基础文件存储服务 (PostgreSQL 适配版)
-# =========================================================
-
-def save_contract_file(biz_code, file_name, file_bytes, table_name=None, file_type="unknown"):
+def save_attachment(biz_code, uploaded_file, source_table, file_category="unknown"):
     """
-    [通用文件上传] 将任何格式的文件字节流存入物理硬盘，并记录到 PostgreSQL 数据库。
+    [Service 层] 负责附件的物理落地、安全校验，并持久化到系统附件库
     """
     conn = None
     try:
-        # 1. 兜底表名逻辑
-        if table_name is None:
-            table_name = "unknown_source"
-            
-        # 2. 物理存储逻辑：确保以项目编号为目录 (使用 UPLOAD_DIR 绝对路径)
-        target_dir = os.path.join(UPLOAD_DIR, str(biz_code))
-        if not os.path.exists(target_dir):
-            os.makedirs(target_dir, exist_ok=True)
-            
-        path = os.path.join(target_dir, file_name)
-        
-        # 写入字节流
-        with open(path, "wb") as f:
-            f.write(file_bytes)
-        
-        # 3. 数据库记录逻辑 (PostgreSQL 适配)
+        # 1. 物理层：动态建立合同专属文件夹并写入磁盘
+        target_dir = UPLOAD_DIR / str(biz_code)
+        target_dir.mkdir(parents=True, exist_ok=True)
+        file_path = target_dir / uploaded_file.name
+
+        with open(file_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
+
+        # 2. 逻辑层：提取文件元数据 (后缀名等)
+        file_extension = Path(uploaded_file.name).suffix.lower().lstrip('.')
+        # 预留扩展位：可以在这里调用 os.path.getsize(file_path) 获取文件大小并存入 file_size_kb
+
+        # 3. 持久层：写入数据库 (sys_attachments)
         conn = get_connection()
-        cur = conn.cursor()
-        
-        # 🟢 关键修改：? 替换为 %s，补齐字段
         sql = """
-            INSERT INTO sys_contract_files 
-            (biz_code, source_table, file_name, file_path, file_type, upload_time) 
+            INSERT INTO sys_attachments (biz_code, source_table, file_category, file_name, file_path, file_type)
             VALUES (%s, %s, %s, %s, %s, %s)
         """
-        cur.execute(sql, (
-            biz_code, 
-            table_name, 
-            file_name, 
-            path, 
-            file_type, 
-            datetime.now()
-        ))
-        
+        conn.execute(sql, (biz_code, source_table, file_category, uploaded_file.name, str(file_path), file_extension))
         conn.commit()
-        return True, "上传成功"
         
+        # 🚀 预留钩子：如果是合同文本，且配置了 AI 自动解析，未来在这里向消息队列发送 AI 解析任务！
+        
+        return True, "附件归档成功"
     except Exception as e:
-        if conn: 
-            conn.rollback()
-        return False, f"文件保存失败: {str(e)}"
+        if conn: conn.rollback()
+        return False, str(e)
     finally:
-        if conn: 
-            conn.close()
+        if conn: conn.close()

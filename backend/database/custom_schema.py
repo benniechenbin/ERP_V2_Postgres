@@ -4,65 +4,6 @@
 def execute_custom_static_tables(cursor):
     """在此处编写所有不需要 JSON 驱动的底层表 SQL"""
     # =========================================================
-    # 📝 基础支撑表 (系统运行必备)
-    # =========================================================
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS sys_import_logs (
-        id SERIAL PRIMARY KEY,
-        operator VARCHAR(50),      -- 导入操作人
-        file_name VARCHAR(255),    -- 导入的文件名
-        import_type VARCHAR(50),   -- 导入的目标模型（如 project, enterprise）
-        success_count INTEGER,     -- 成功写入条数
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-    ''')
-     # 2. 附件归档表 (带 AI 扩展)
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS sys_contract_files (
-            id SERIAL PRIMARY KEY,
-            biz_code VARCHAR(100) NOT NULL,
-            source_table VARCHAR(50),   -- 标识属于主合同还是流水
-            file_name TEXT, 
-            file_path TEXT,
-            file_type VARCHAR(50),      -- 预留给 AI：pdf/docx
-            upload_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS sys_ai_tasks (
-            id SERIAL PRIMARY KEY,
-            file_id INTEGER,                     
-            task_type VARCHAR(50) DEFAULT 'contract_extraction', 
-            status VARCHAR(20) DEFAULT 'pending', 
-            result_json JSONB,                   
-            error_msg TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            completed_at TIMESTAMP
-        )
-    ''')
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS sys_users (
-            id SERIAL PRIMARY KEY,
-            username VARCHAR(50) UNIQUE NOT NULL, 
-            password_hash VARCHAR(255) NOT NULL,
-            role VARCHAR(50) DEFAULT '普通员工',
-            
-            -- 1. 业务状态：账号是否被冻结（例如离职、休假、输错密码锁定）
-            status VARCHAR(20) DEFAULT 'active',        -- 状态：active(活跃), disabled(禁用), locked(锁定)
-            disabled_at TIMESTAMP DEFAULT NULL,         -- 记录账号被禁用的具体时间
-            
-            -- 2. 架构一致性：软删除标记
-            deleted_at TIMESTAMP DEFAULT NULL,          -- NULL表示在职，有时间表示该账号已从系统中彻底移除
-            
-            -- 3. 安全审计：最后登录时间
-            last_login_at TIMESTAMP DEFAULT NULL,       
-            
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    
-    # =========================================================
     # 🏗️ 核心业务表 1：收款计划表 (契约层)
     # 作用：记录合同约定的里程碑节点，用于预测未来的现金流和生成催款计划。
     # =========================================================
@@ -170,11 +111,29 @@ def execute_custom_static_tables(cursor):
             id SERIAL PRIMARY KEY,
             biz_code VARCHAR(100) UNIQUE NOT NULL,
             sub_contract_code VARCHAR(100) NOT NULL,   -- 认领分包合同
-            payment_amount NUMERIC(15,2) DEFAULT 0.00,
-            payment_date DATE,
-            payment_method VARCHAR(50),
-            invoice_received_amount NUMERIC(15,2) DEFAULT 0.00,
-            invoice_number VARCHAR(100),
+            payment_amount NUMERIC(15,2) DEFAULT 0.00, -- 实际付款金额
+            payment_date DATE,                         -- 付款日期
+            payment_method VARCHAR(50),                -- 支付方式(电汇/承兑等)
+            operator VARCHAR(50),
+            remarks TEXT,
+            deleted_at TIMESTAMP DEFAULT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    # =========================================================
+    # 🏗️ 核心业务表 7：分包进项发票表 (分包侧 - 纯票据流入)
+    # 🟢 新增：独立管理分包商开过来的发票，用于防范“欠票风险”
+    # =========================================================
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS biz_sub_invoices (
+            id SERIAL PRIMARY KEY,
+            biz_code VARCHAR(100) UNIQUE NOT NULL,
+            sub_contract_code VARCHAR(100) NOT NULL,   -- 认领分包合同
+            invoice_amount NUMERIC(15,2) DEFAULT 0.00, -- 收票金额
+            invoice_date DATE,                         -- 收票/开票日期
+            invoice_number VARCHAR(100),               -- 发票号码
+            invoice_type VARCHAR(50),                  -- 发票类型(如:增值税专用发票)
             operator VARCHAR(50),
             remarks TEXT,
             deleted_at TIMESTAMP DEFAULT NULL,
@@ -185,20 +144,19 @@ def execute_custom_static_tables(cursor):
    # ==========================================
     # 🚀 [第三战区] 物理性能加速 (高频查询索引)
     # ==========================================
-    # 1. 系统与附件索引
-    cursor.execute('CREATE INDEX IF NOT EXISTS "idx_files_biz" ON sys_contract_files(biz_code);')
-    cursor.execute('CREATE INDEX IF NOT EXISTS "idx_ai_tasks_status" ON sys_ai_tasks(status);')
     
-    # 2. 财务表核心锚点索引 (极其重要：保证大屏统计与内存聚合不卡顿！)
+    
+    # 主合同侧索引
     cursor.execute('CREATE INDEX IF NOT EXISTS "idx_plan_main" ON biz_payment_plans(main_contract_code);')
     cursor.execute('CREATE INDEX IF NOT EXISTS "idx_inv_main" ON biz_invoices(main_contract_code);')
     cursor.execute('CREATE INDEX IF NOT EXISTS "idx_inv_plan" ON biz_invoices(target_plan_code);')
-    cursor.execute('CREATE INDEX IF NOT EXISTS "idx_out_sub" ON biz_outbound_payments(sub_contract_code);')
-
-    # 🟢 3. 为“资金流水表”补齐缺失的黄金双索引
     cursor.execute('CREATE INDEX IF NOT EXISTS "idx_col_main" ON biz_collections(main_contract_code);')
     cursor.execute('CREATE INDEX IF NOT EXISTS "idx_col_plan" ON biz_collections(target_plan_code);')
 
-    # 🟢 4. 为“变更”与“质保”表添加挂靠点索引
+    # 通用表索引
     cursor.execute('CREATE INDEX IF NOT EXISTS "idx_change_biz" ON sys_change_orders(biz_code);')
     cursor.execute('CREATE INDEX IF NOT EXISTS "idx_retention_biz" ON sys_retentions(biz_code);')
+
+    # 🟢 分包侧索引 (双剑合璧)
+    cursor.execute('CREATE INDEX IF NOT EXISTS "idx_out_sub" ON biz_outbound_payments(sub_contract_code);')
+    cursor.execute('CREATE INDEX IF NOT EXISTS "idx_sub_inv_sub" ON biz_sub_invoices(sub_contract_code);')

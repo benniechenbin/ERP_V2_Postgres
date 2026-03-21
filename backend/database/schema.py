@@ -76,8 +76,9 @@ def _create_dynamic_business_tables(cursor):
 
         columns_sql = [
             "id SERIAL PRIMARY KEY",
-            "deleted_at TIMESTAMP DEFAULT NULL",  # 🟢 升级：记录具体的删除时间，NULL表示存活
-            "extra_props JSONB DEFAULT '{}'::jsonb" # V2.0 终极兜底袋
+            "deleted_at TIMESTAMP DEFAULT NULL",  # 原有的删除时间
+            "deleted_by VARCHAR(50) DEFAULT NULL",  # 🟢 新增：记录到底是谁删的
+            "extra_props JSONB DEFAULT '{}'::jsonb" 
         ]
         
         for field_key, meta in field_meta.items():
@@ -130,7 +131,103 @@ def sync_database_schema():
     try:
         conn = get_connection()
         cursor = conn.cursor()
+        # 0. 创建审计日志表
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS sys_audit_logs (
+            id SERIAL PRIMARY KEY,
+            biz_code VARCHAR(100) NOT NULL,     -- 被操作的业务编号
+            model_name VARCHAR(50),             -- 所属模型 (如 enterprise, main_contract)
+            action VARCHAR(20),                 -- 动作类型 (INSERT/UPDATE/DELETE/RESTORE)
+            operator_name VARCHAR(50),          -- 操作人
+            diff_data JSONB,                    -- 变更详情快照 {"字段": ["旧值", "新值"]}
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+        # 1. 创建附件归档表
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS sys_attachments (
+            id SERIAL PRIMARY KEY,
+            biz_code VARCHAR(100) NOT NULL,      -- 挂载的业务主体编号 (如 MAIN-001, SUB-002)
+            source_table VARCHAR(50),            -- 来源模型名称 (如 main_contract)
+            
+            -- 🟢 新增：对接前端的下拉框分类
+            file_category VARCHAR(50),           -- 附件分类 (主合同/图纸/结算单等) 
+            
+            file_name TEXT,                      -- 原始文件名
+            file_path TEXT,                      -- 服务器物理路径或 OSS 链接
+            file_type VARCHAR(50),               -- 文件后缀名 (pdf/docx/jpg)
+            file_size_kb INTEGER DEFAULT 0,      -- 🟢 新增：文件大小(便于以后做网盘容量统计)
+            
+            upload_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+        # 2. 创建用户表
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS sys_users (
+            id SERIAL PRIMARY KEY,
+            username VARCHAR(50) UNIQUE NOT NULL, 
+            password_hash VARCHAR(255) NOT NULL,
+            role VARCHAR(50) DEFAULT '普通员工',
+            
+            -- 1. 业务状态：账号是否被冻结（例如离职、休假、输错密码锁定）
+            status VARCHAR(20) DEFAULT 'active',        -- 状态：active(活跃), disabled(禁用), locked(锁定)
+            disabled_at TIMESTAMP DEFAULT NULL,         -- 记录账号被禁用的具体时间
+            
+            -- 2. 架构一致性：软删除标记
+            deleted_at TIMESTAMP DEFAULT NULL,          -- NULL表示在职，有时间表示该账号已从系统中彻底移除
+            
+            -- 3. 安全审计：最后登录时间
+            last_login_at TIMESTAMP DEFAULT NULL,       
+            
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
         
+        # 3. 创建AI任务表
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS sys_ai_tasks (
+            id SERIAL PRIMARY KEY,
+            file_id INTEGER,                     
+            task_type VARCHAR(50) DEFAULT 'contract_extraction', 
+            status VARCHAR(20) DEFAULT 'pending', 
+            result_json JSONB,                   
+            error_msg TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            completed_at TIMESTAMP
+        )
+    ''')
+    
+        # 4. 创建任务日志表
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS sys_job_logs (
+            id SERIAL PRIMARY KEY,
+            operator VARCHAR(50),      -- 触发人或系统调度器名 (如 'system_cron')
+            
+            job_type VARCHAR(50),      -- 任务类型 (如 'excel_import', 'api_sync', 'monthly_accrual')
+            target_model VARCHAR(50),  -- 影响的业务模型 (如 'main_contract')
+            source_name VARCHAR(255),  -- 数据源载体 (文件名，或接口标识符)
+            
+            status VARCHAR(20) DEFAULT 'processing', -- 状态: processing, success, partial_fail, failed
+            
+            total_count INTEGER DEFAULT 0,   -- 计划处理总数
+            success_count INTEGER DEFAULT 0, -- 成功条数
+            fail_count INTEGER DEFAULT 0,    -- 失败条数
+            
+            error_details TEXT,              -- 详细报错追踪 (JSON格式)
+            
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            completed_at TIMESTAMP           -- 任务完成时间
+        )
+        ''')
+        
+        cursor.execute('CREATE INDEX IF NOT EXISTS "idx_audit_biz" ON sys_audit_logs(biz_code);')
+        cursor.execute('CREATE INDEX IF NOT EXISTS "idx_attachments_biz" ON sys_attachments(biz_code);')
+        cursor.execute('CREATE INDEX IF NOT EXISTS "idx_ai_tasks_status" ON sys_ai_tasks(status);')
+        cursor.execute('CREATE INDEX IF NOT EXISTS "idx_users_status" ON sys_users(status);')
+        cursor.execute('CREATE INDEX IF NOT EXISTS "idx_users_role" ON sys_users(role);')
+        cursor.execute('CREATE INDEX IF NOT EXISTS "idx_job_logs_status" ON sys_job_logs(status);')
         # 1. 启动动态引擎建主表
         _create_dynamic_business_tables(cursor)
         

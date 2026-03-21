@@ -158,14 +158,16 @@ if uploaded_file:
         total_rows = len(target_df)
         msg = f"正在逐行校验并安全入库 {total_rows} 条数据，大文件可能需要等待 1-2 分钟，请勿刷新页面..."
         with st.spinner(msg):
-            # 🟢 升级 3：拦截冗余传参，把外键关联交给底层 Schema 自主消化！
+
+            current_user = st.session_state.get('user_name', 'System')
             success, msg = svc.run_import_process(
                 uploaded_file=uploaded_file, 
                 target_sheet_name=target_sheet, 
                 model_name=model_name,
                 import_mode="overwrite" if "覆盖" in import_mode else "append",
                 manual_mapping=user_final_mapping, 
-                header_overrides=overrides         
+                header_overrides=overrides,
+                operator=current_user        
             )
             if success:
                 st.success(msg)

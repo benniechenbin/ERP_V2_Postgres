@@ -35,7 +35,7 @@ def update_biz_code_cascade(old_code, new_code, table_name):
         
         # 3. 修改关联表
         cursor.execute("UPDATE sys_project_flows SET biz_code = %s WHERE biz_code = %s AND source_table = %s", (new_code, old_code, table_name))
-        cursor.execute("UPDATE sys_contract_files SET biz_code = %s WHERE biz_code = %s AND source_table = %s", (new_code, old_code, table_name))   
+        cursor.execute("UPDATE sys_attachments SET biz_code = %s WHERE biz_code = %s AND source_table = %s", (new_code, old_code, table_name))   
         
         # 4. 迁移物理文件
         renamed_folder = False

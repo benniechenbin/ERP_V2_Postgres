@@ -295,34 +295,132 @@
             "table_name": "biz_sub_contracts",
             "model_label": "分包合同台账",
             "field_meta": {
-                "book_main_code": { "label": "EBM编号(账面归属)", "type": "text" },
-                "actual_main_code": { "label": "主合同编号(实际归属)", "type": "text" },
-                "biz_code": { "label": "分包合同编号", "type": "text" },
-                "sub_company_name": { "label": "分包单位", "type": "text" },
-                "sub_manager": { "label": "分包负责人", "type": "text" },
-                "sub_type": { "label": "分包类型/专业", "type": "text" },
-                "sign_date": { "label": "签约日期", "type": "date" },
-                "sub_amount": { "label": "分包合同金额(元)", "type": "num" },
-                "tax_rate": { "label": "税率", "type": "select", "options": ["6%", "9%", "3%", "1%", "0%"] },
-                "retention_ratio": { "label": "质保金比例", "type": "percent" },
-                "is_back_to_back": { "label": "是否背靠背", "type": "select", "options": ["是", "否"], "default": "是" },
-                "settlement_status": { "label": "结算状态", "type": "select", "options": ["履行中", "已结算", "强制终止"] },
-                "operator": { "label": "经办人", "type": "text" },
-                "ap_days": { "label": "付款期(天)", "type": "num" },
-
-                "is_archived": { "label": "是否已归档", "type": "text", "default": "否", "readonly": true },
-
-                "project_code": { "label": "项目编号", "type": "text", "is_virtual": true },
-                "project_name": { "label": "项目名称", "type": "text", "is_virtual": true },
-                "client_name": { "label": "甲方单位", "type": "text", "is_virtual": true },
-                "main_contract_amount": { "label": "主合同金额(元)", "type": "num", "is_virtual": true },
-                "main_total_collected": { "label": "主合同累计收费(元)", "type": "num", "is_virtual": true },
-                "total_invoiced_from_sub": { "label": "累计收到发票金额(元)", "type": "num", "is_virtual": true },
-                "total_paid": { "label": "累计支付(元)", "type": "num", "is_virtual": true },
-                
-                "sub_ratio": { "label": "分包占比", "type": "percent" },
-                "payment_progress": { "label": "支付进度", "type": "percent" },
-                "unpaid_amount": { "label": "应付账款(元)", "type": "num" }
+                "book_main_code": {
+                    "label": "EBM编号(账面归属)",
+                    "type": "text"
+                },
+                "actual_main_code": {
+                    "label": "主合同编号(实际归属)",
+                    "type": "text"
+                },
+                "biz_code": {
+                    "label": "分包合同编号",
+                    "type": "text"
+                },
+                "sub_company_name": {
+                    "label": "分包单位",
+                    "type": "text"
+                },
+                "sub_manager": {
+                    "label": "分包负责人",
+                    "type": "text"
+                },
+                "sub_type": {
+                    "label": "分包类型/专业",
+                    "type": "text"
+                },
+                "sign_date": {
+                    "label": "签约日期",
+                    "type": "date"
+                },
+                "sub_amount": {
+                    "label": "分包合同金额(元)",
+                    "type": "num"
+                },
+                "tax_rate": {
+                    "label": "税率",
+                    "type": "select",
+                    "options": [
+                        "6%",
+                        "9%",
+                        "3%",
+                        "1%",
+                        "0%"
+                    ]
+                },
+                "retention_ratio": {
+                    "label": "质保金比例",
+                    "type": "percent"
+                },
+                "is_back_to_back": {
+                    "label": "是否背靠背",
+                    "type": "select",
+                    "options": [
+                        "是",
+                        "否"
+                    ],
+                    "default": "是"
+                },
+                "settlement_status": {
+                    "label": "结算状态",
+                    "type": "select",
+                    "options": [
+                        "履行中",
+                        "已结算",
+                        "强制终止"
+                    ]
+                },
+                "operator": {
+                    "label": "经办人",
+                    "type": "text"
+                },
+                "ap_days": {
+                    "label": "付款期(天)",
+                    "type": "num"
+                },
+                "is_archived": {
+                    "label": "是否已归档",
+                    "type": "text",
+                    "default": "否",
+                    "readonly": true
+                },
+                "project_code": {
+                    "label": "项目编号",
+                    "type": "text",
+                    "is_virtual": true
+                },
+                "project_name": {
+                    "label": "项目名称",
+                    "type": "text",
+                    "is_virtual": true
+                },
+                "client_name": {
+                    "label": "甲方单位",
+                    "type": "text",
+                    "is_virtual": true
+                },
+                "main_contract_amount": {
+                    "label": "主合同金额(元)",
+                    "type": "num",
+                    "is_virtual": true
+                },
+                "main_total_collected": {
+                    "label": "主合同累计收费(元)",
+                    "type": "num",
+                    "is_virtual": true
+                },
+                "total_invoiced_from_sub": {
+                    "label": "累计收到发票金额(元)",
+                    "type": "num",
+                    "is_virtual": true
+                },
+                "total_paid": {
+                    "label": "累计支付(元)",
+                    "type": "num",
+                    "is_virtual": true
+                },
+                "sub_ratio": {
+                    "label": "分包占比",
+                    "type": "percent"
+                },
+                "payment_progress": {
+                    "label": "支付进度",
+                    "type": "percent"
+                },
+                "unpaid_amount": {
+                    "label": "应付账款(元)",
+                    "type": "num"
+                }
             },
             "formulas": {
                 "sub_ratio": "(sub_amount / main_contract_amount) * 100",
@@ -330,21 +428,95 @@
                 "unpaid_amount": "sub_amount - total_paid"
             },
             "column_mapping": {
-                "book_main_code": ["EBM编号", "账面归属"],
-                "actual_main_code": ["主合同编号", "实际归属"],
-                "biz_code": ["分包合同编号", "合同号"],
-                "sub_company_name": ["分包单位", "乙方名称"],
-                "sub_manager": ["分包负责人"],
-                "sub_type": ["分包类型", "专业"],
-                "sign_date": ["签约日期", "签订日期"],
-                "sub_amount": ["分包合同金额", "合同价"],
-                "tax_rate": ["税率"],
-                "retention_ratio": ["质保金比例", "扣款比例"],
-                "is_back_to_back": ["是否背靠背"],
-                "settlement_status": ["结算状态"],
-                "operator": ["经办人"],
-                "ap_days": ["付款期", "信用期"],
-                "is_archived": ["是否已归档"]
+                "book_main_code": [
+                    "EBM编号",
+                    "账面归属",
+                    "EBM编号(账面归属)"
+                ],
+                "actual_main_code": [
+                    "主合同编号",
+                    "实际归属",
+                    "主合同编号(实际归属)"
+                ],
+                "biz_code": [
+                    "分包合同编号",
+                    "合同号"
+                ],
+                "sub_company_name": [
+                    "分包单位",
+                    "乙方名称"
+                ],
+                "sub_manager": [
+                    "分包负责人"
+                ],
+                "sub_type": [
+                    "分包类型",
+                    "专业",
+                    "分包类型/专业"
+                ],
+                "sign_date": [
+                    "签约日期",
+                    "签订日期"
+                ],
+                "sub_amount": [
+                    "分包合同金额",
+                    "合同价",
+                    "分包合同金额(元)"
+                ],
+                "tax_rate": [
+                    "税率"
+                ],
+                "retention_ratio": [
+                    "质保金比例",
+                    "扣款比例"
+                ],
+                "is_back_to_back": [
+                    "是否背靠背"
+                ],
+                "settlement_status": [
+                    "结算状态"
+                ],
+                "operator": [
+                    "经办人"
+                ],
+                "ap_days": [
+                    "付款期",
+                    "信用期",
+                    "付款期(天)"
+                ],
+                "is_archived": [
+                    "是否已归档"
+                ],
+                "project_code": [
+                    "项目编号"
+                ],
+                "project_name": [
+                    "项目名称"
+                ],
+                "client_name": [
+                    "甲方单位"
+                ],
+                "main_contract_amount": [
+                    "主合同金额(元)"
+                ],
+                "main_total_collected": [
+                    "主合同累计收费(元)"
+                ],
+                "total_invoiced_from_sub": [
+                    "累计收到发票金额(元)"
+                ],
+                "total_paid": [
+                    "累计支付(元)"
+                ],
+                "sub_ratio": [
+                    "分包占比"
+                ],
+                "payment_progress": [
+                    "支付进度"
+                ],
+                "unpaid_amount": [
+                    "应付账款(元)"
+                ]
             }
         },
         "enterprise": {

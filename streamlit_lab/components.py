@@ -1,54 +1,47 @@
 # ==========================================
-# 🎨 Streamlit UI 小组件 (偷懒神器)
+# 🎨 Streamlit UI 小组件 (偷懒神器) V3
 # ==========================================
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-
+import json
+from backend.database.db_engine import get_connection
 from backend.config import config_manager as cfg
-from backend.database.crud import fetch_dynamic_records# 假设您的 CRUD 有这个基础查询方法
+from backend.database.crud import fetch_dynamic_records
 
-def render_smart_widget(col_name, label, val, col_type, config_type, is_disabled, field_meta):
+def render_smart_widget(col_name, label, val, col_type, config_type, is_disabled, field_meta, override_options=None, override_format_func=None):
     """
-    [智能 UI 组件渲染工厂] 根据字段类型，自动生成对应的 Streamlit 输入框，并返回用户输入的值。
+    [智能 UI 组件渲染工厂] 根据字段类型，自动生成对应的 Streamlit 输入框。
     """
-    # 1. 提取额外配置
-    options = field_meta.get("options", [])
+    # 🟢 魔法注入：如果外部传了选项，强行霸占 options，并把组件类型变异为 select！
+    options = override_options if override_options is not None else field_meta.get("options", [])
+    if override_options is not None:
+        config_type = "select"
+
     default_val = field_meta.get("default", None)
     step_val = field_meta.get("step", 1000.0)
     min_val = field_meta.get("min_value", None)
     max_val = field_meta.get("max_value", None)
 
-    # 2. 初始默认值处理（处理新增模式下 val 为空的情况）
     if val is None and default_val is not None:
         val = default_val
 
     # ================= 渲染核心逻辑 =================
     
-    # 类型 A：下拉选择框
     if config_type == "select" and options:
         try:
             idx = options.index(val) if val in options else 0
         except ValueError:
             idx = 0
-        if "市场系数" in label or "比例" in label or "率" in label:
-            return st.selectbox(
-                label, 
-                options=options, 
-                index=idx, 
-                disabled=is_disabled, 
-                key=f"input_{col_name}",
-                format_func=lambda x: f"{x * 100:g}%" if isinstance(x, (int, float)) else str(x)
-            )
+            
+        # 🟢 魔法注入：如果外部传了 format_func，优先使用！
+        if override_format_func:
+            return st.selectbox(label, options=options, index=idx, disabled=is_disabled, format_func=override_format_func, key=f"input_{col_name}")
         else:
-            # 普通的下拉框
             return st.selectbox(label, options=options, index=idx, disabled=is_disabled, key=f"input_{col_name}")
-
-    # 类型 B：开关 Toggle (专供 is_active 使用)
     elif col_name == 'is_active':
         return st.toggle(label, value=bool(val) if val is not None else True, key=f"input_{col_name}")
 
-    # 类型 C：日期选择器 (小日历)
     elif config_type == "date":
         if pd.isna(val) or val is None or str(val).strip() == "":
             default_date = datetime.today().date()
@@ -59,9 +52,8 @@ def render_smart_widget(col_name, label, val, col_type, config_type, is_disabled
                 default_date = datetime.today().date()
                 
         selected_date = st.date_input(label, value=default_date, disabled=is_disabled, key=f"input_{col_name}")
-        return str(selected_date) # 转回纯字符串格式迎合数据库
+        return str(selected_date) 
       
-    # 类型 D：数字/百分比输入框
     elif "DECIMAL" in col_type or "REAL" in col_type or "INT" in col_type:
         try:
             default_num = float(val)
@@ -78,7 +70,6 @@ def render_smart_widget(col_name, label, val, col_type, config_type, is_disabled
             if max_val is None: max_val = 100.0
             step_val = 5
         
-        # 🟢 终极防御：强行限制默认值在合法范围内，防止脏数据导致 Streamlit 崩溃！
         if min_val is not None:
             default_num = max(default_num, float(min_val))
         if max_val is not None:
@@ -97,24 +88,17 @@ def render_smart_widget(col_name, label, val, col_type, config_type, is_disabled
         
         return raw_input / 100.0 if config_type == "percent" else raw_input
             
-    # 类型 E：默认文本输入框 (兜底)
     else:
         default_str = str(val) if val is not None else ""
         return st.text_input(label, value=default_str, disabled=is_disabled, key=f"input_{col_name}")
 
 def show_toast_success(msg):
-    """封装一个统一风格的成功提示"""
     st.toast(f"✅ {msg}", icon="🎉")
 
 def show_toast_error(msg):
-    """封装一个统一风格的错误提示"""
     st.toast(f"❌ {msg}", icon="😱")
 
 def style_metric_card():
-    """
-    (进阶) 给 st.metric 加一点 CSS 样式，让卡片带阴影。
-    只需要在页面开头调用一次 utils.style_metric_card()
-    """
     st.markdown("""
     <style>
     div[data-testid="stMetric"] {
@@ -128,41 +112,24 @@ def style_metric_card():
     """, unsafe_allow_html=True)
 
 def remove_prefix_formatter(prefix: str):
-    """
-    [通用 UI 工具] 高阶函数：生成一个去除指定前缀的格式化函数。
-    极度适合用于 Streamlit 的 format_func。
-    
-    原理：传入你需要剔除的前缀（如 "data_" 或 "sys_"），
-    它会返回一个专门处理该前缀的函数给 selectbox 用。
-    """
     def formatter(item):
         if isinstance(item, str) and item.startswith(prefix):
-            # 使用字符串切片 [len(prefix):] 比 replace 更安全
-            # 因为它只切除开头的对应字符，即使后面内容包含该前缀也不会误伤
             return item[len(prefix):]
         return item
-    
     return formatter
-
 
 def dict_mapping_formatter(mapping_dict: dict):
-    """
-    [通用 UI 工具] 高阶函数：生成一个基于字典映射的格式化函数。
-    常用于把底层的英文 key 翻译成前端漂亮的中文展示。
-    """
     def formatter(item):
-        # 如果字典里有，就用字典里的漂亮名字；如果没有，就保持原样
         return mapping_dict.get(item, item)
-    
     return formatter
 
 # ==========================================
-# 🚀 V2.0 宏观 UI 渲染引擎 (缺口 4 补齐)
+# 🚀 V3.0 宏观 UI 渲染引擎 (支持动态注入)
 # ==========================================
-def render_dynamic_form(model_name: str, form_title: str, existing_data: dict = None, hidden_fields: list = None, readonly_fields: list = None):
+def render_dynamic_form(model_name: str, form_title: str, existing_data: dict = None, hidden_fields: list = None, readonly_fields: list = None, dynamic_options: dict = None, format_funcs: dict = None):
     """
-    [宏观组件 2：动态输入表单 - V2 三列增强版]
-    极其强悍的表单生成器！自动根据 JSON 生成一整套输入框，并支持通过常量列表覆写字段属性。
+    [宏观组件 2：动态输入表单 - V3 终极版]
+    极其强悍的表单生成器！自动根据 JSON 生成输入框，并支持在页面端注入动态下拉选项和格式化魔法！
     """
     field_meta = cfg.get_field_meta(model_name)
     if not field_meta:
@@ -173,19 +140,19 @@ def render_dynamic_form(model_name: str, form_title: str, existing_data: dict = 
     form_data = {}
     existing_data = existing_data or {}
     
-    # 🟢 接收常量控制列表 (默认为空)
     hidden_fields = hidden_fields or []
     readonly_fields = readonly_fields or []
     
-    # 🟢 核心过滤：剔除虚拟列，并且剔除掉业务强行要求隐藏的列 (HIDDEN)
+    # 🟢 接收并初始化动态参数
+    dynamic_options = dynamic_options or {}
+    format_funcs = format_funcs or {}
+    
     editable_fields = {
         k: v for k, v in field_meta.items() 
         if not v.get("is_virtual", False) and k not in hidden_fields
     }
     
-    # 开启表单域
     with st.form(key=f"form_{model_name}"):
-        # 🟢 进化为三列排版，极大提升屏幕空间利用率
         col1, col2, col3 = st.columns(3)
         cols = [col1, col2, col3]
         
@@ -194,13 +161,11 @@ def render_dynamic_form(model_name: str, form_title: str, existing_data: dict = 
             col_type = meta.get("type", "text")
             val = existing_data.get(field_key, None)
             
-            # 🟢 动态只读控制：取 JSON 底层配置 和 前端强行 READONLY 的并集
             is_readonly = meta.get("readonly", False) or (field_key in readonly_fields)
             
             config_type = meta.get("type", "text")
             pseudo_col_type = "DECIMAL" if config_type in ["money", "percent", "number"] else "VARCHAR"
             
-            # 配合三列取余数
             with cols[idx % 3]:
                 user_input = render_smart_widget(
                     col_name=field_key,
@@ -209,11 +174,12 @@ def render_dynamic_form(model_name: str, form_title: str, existing_data: dict = 
                     col_type=pseudo_col_type,
                     config_type=config_type,
                     is_disabled=is_readonly,
-                    field_meta=meta
+                    field_meta=meta,
+                    override_options=dynamic_options.get(field_key),   # 🟢 动态选项注入
+                    override_format_func=format_funcs.get(field_key)   # 🟢 格式化魔法注入
                 )
                 form_data[field_key] = user_input
                 
-        # 提交按钮单独占满一行
         submit_btn = st.form_submit_button("💾 保存提交", use_container_width=True)
         
         if submit_btn:
@@ -225,10 +191,7 @@ def render_audit_timeline(biz_code: str, model_name: str = None):
     """
     [通用审计组件：时光机]
     传入 biz_code，自动展示该对象的完整生命周期。
-    """
-    from backend.database.db_engine import get_connection
-    import json
-    
+    """   
     st.subheader(f"🕰️ 操作审计日志: {biz_code}")
     
     conn = None
