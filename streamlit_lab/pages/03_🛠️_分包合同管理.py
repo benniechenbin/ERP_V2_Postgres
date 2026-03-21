@@ -351,7 +351,10 @@ else:
             st.markdown("#### 🗑️ 合同作废")
             if st.button("🗑️ 软删除该分包合同", use_container_width=True):
                 target_table = cfg.get_model_config("sub_contract").get("table_name", "biz_sub_contracts")
-                sql = f'UPDATE "{target_table}" SET deleted_at = CURRENT_TIMESTAMP WHERE biz_code = %s'
+                success, msg = crud.soft_delete_project(
+                        project_id=target_id, 
+                        table_name=target_table,
+                        operator_name=current_user
                 if db.execute_raw_sql(sql, (selected_biz_code,))[0]:
                     st.toast("已安全移入系统全局回收站", icon="🗑️")
                     trigger_refresh()
