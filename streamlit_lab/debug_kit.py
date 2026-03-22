@@ -94,14 +94,14 @@ def execute_debug_logic(current_db_path=None):
         # 2. 定义常用 SQL 模板
         SQL_TEMPLATES = {
             "--- 请选择预设模板 (可选) ---": "",
-            "🔍 查看所有表名": "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';",
-            "👀 查看前 10 条数据": f"SELECT * FROM \"{default_table}\" LIMIT 10;",
-            "📑 查看表结构 (列定义)": f"PRAGMA table_info(\"{default_table}\");",
-            "➕ [热修] 增加一个小数列 (用于金额/系数)": f"ALTER TABLE \"{default_table}\" ADD COLUMN new_column_name REAL DEFAULT 0.0;",
-            "➕ [热修] 增加一个开关列 (用于状态标记)": f"ALTER TABLE \"{default_table}\" ADD COLUMN is_flag INTEGER DEFAULT 0;",
-            "➕ [热修] 增加一个文本列 (用于备注)": f"ALTER TABLE \"{default_table}\" ADD COLUMN new_text_col TEXT;",
-            "🧹 [清理] 删除项目编号为空的行": f"DELETE FROM \"{default_table}\" WHERE biz_code IS NULL OR biz_code = '';",
-            "🔥 [危险] 删除整个表": f"DROP TABLE \"{default_table}\";"
+            "🔍 查看所有数据表名": "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';",
+            "👀 查看前 10 条数据": f'SELECT * FROM "{default_table}" LIMIT 10;',
+            "📑 查看表结构 (列定义)": f"SELECT column_name, data_type, character_maximum_length, column_default FROM information_schema.columns WHERE table_name = '{default_table}';",
+            "➕ [热修] 增加一个小数列 (用于金额/系数)": f'ALTER TABLE "{default_table}" ADD COLUMN new_column_name NUMERIC(15,2) DEFAULT 0.00;',
+            "➕ [热修] 增加一个文本列 (用于备注)": f'ALTER TABLE "{default_table}" ADD COLUMN new_text_col VARCHAR(255);',
+            "➕ [热修] 增加一个整数列 (用于状态标记)": f'ALTER TABLE "{default_table}" ADD COLUMN is_flag INTEGER DEFAULT 0;',
+            "🧹 [清理] 删除业务编号为空的行": f'DELETE FROM "{default_table}" WHERE biz_code IS NULL OR biz_code = \'\';',
+            "🔥 [危险] 删除整个表": f'DROP TABLE "{default_table}";'
         }
 
         # --- 🟢 核心修复：定义回调函数 ---
@@ -119,22 +119,20 @@ def execute_debug_logic(current_db_path=None):
                 options=list(SQL_TEMPLATES.keys()),
                 index=0,
                 key="sql_template_selector",
-                on_change=on_template_change  # <--- 🟢 绑定回调
+                on_change=on_template_change
             )
         with c_tip:
             st.info(f"当前默认表: `{default_table}`")
 
         # 4. SQL 编辑区
-        # 注意：这里不再需要 value 参数来动态绑定，因为 state 已经由回调函数控制了
-        # 但为了第一次渲染不报错，可以保留 value作为初始值，或者确保 key 在 session_state 中初始化
         if "sql_input_area" not in st.session_state:
              st.session_state["sql_input_area"] = ""
 
         sql_input = st.text_area(
             "SQL 语句 (支持多行)", 
             height=150,
-            help="输入标准 SQLite 语法。如需操作特定表，请确保表名加双引号。",
-            key="sql_input_area" # <--- 这里的 key 与回调函数里的一致
+            help="输入标准 PostgreSQL 语法。如需操作特定表，请确保表名加双引号。", # 🟢 修改了这里的提示文字
+            key="sql_input_area" 
         )
         
         # 5. 执行按钮

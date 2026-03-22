@@ -1,6 +1,8 @@
 import pandas as pd
 import psycopg2.extras
 from backend.database.db_engine import get_connection
+from backend.utils.logger import sys_logger # 顺手注入 logger
+
 
 # ==========================================
 # ⚙️ 引擎一：主合同水池核算 (已修复 Decimal 与重名问题)
@@ -75,7 +77,7 @@ def enrich_sub_contract_stats(df_sub: pd.DataFrame) -> pd.DataFrame:
 
     conn = get_connection()
     try:
-        # 1. 清洗分包表编号
+       # 1. 清洗分包表编号
         df_sub['biz_code'] = df_sub['biz_code'].astype(str).str.strip()
         df_sub['actual_main_code'] = df_sub['actual_main_code'].astype(str).str.strip()
         sub_codes = df_sub['biz_code'].tolist()
@@ -84,11 +86,10 @@ def enrich_sub_contract_stats(df_sub: pd.DataFrame) -> pd.DataFrame:
         placeholders = ', '.join(['%s'] * len(sub_codes))
         params = tuple(sub_codes)
 
-        # 2. 抓取分包已付/收票 (自查池)
+        # 2. 抓取分包已付 (从 biz_outbound_payments)
         sql_pay = f"""
             SELECT sub_contract_code as biz_code, 
                    SUM(payment_amount) as total_paid,
-                   SUM(invoice_received_amount) as total_invoiced_from_sub,
                    MAX(payment_date) as last_payment_date
             FROM biz_outbound_payments
             WHERE sub_contract_code IN ({placeholders}) AND deleted_at IS NULL
@@ -97,10 +98,24 @@ def enrich_sub_contract_stats(df_sub: pd.DataFrame) -> pd.DataFrame:
         cur.execute(sql_pay, params)
         df_pay = pd.DataFrame(cur.fetchall())
         if not df_pay.empty:
-            df_pay[['total_paid', 'total_invoiced_from_sub']] = df_pay[['total_paid', 'total_invoiced_from_sub']].astype(float)
+            df_pay['total_paid'] = df_pay['total_paid'].astype(float)
             df_pay['biz_code'] = df_pay['biz_code'].astype(str).str.strip()
 
-        # 🟢 3. 核心补充：抓取关联主合同的金额 (用于 sub_ratio 比例计算公式)
+        # 🟢 2.5 抓取分包已收票 (从全新的 biz_sub_invoices 表)
+        sql_inv = f"""
+            SELECT sub_contract_code as biz_code, 
+                   SUM(invoice_amount) as total_invoiced_from_sub
+            FROM biz_sub_invoices
+            WHERE sub_contract_code IN ({placeholders}) AND deleted_at IS NULL
+            GROUP BY sub_contract_code
+        """
+        cur.execute(sql_inv, params)
+        df_inv = pd.DataFrame(cur.fetchall())
+        if not df_inv.empty:
+            df_inv['total_invoiced_from_sub'] = df_inv['total_invoiced_from_sub'].astype(float)
+            df_inv['biz_code'] = df_inv['biz_code'].astype(str).str.strip()
+
+        # 3. 核心补充：抓取关联主合同的金额 (用于 sub_ratio 比例计算公式)
         main_codes = [c for c in df_sub['actual_main_code'].unique().tolist() if c and str(c) != 'nan']
         df_main_data = pd.DataFrame()
         if main_codes:
@@ -123,9 +138,11 @@ def enrich_sub_contract_stats(df_sub: pd.DataFrame) -> pd.DataFrame:
         v_cols = ['total_paid', 'total_invoiced_from_sub', 'main_contract_amount', 'main_total_collected']
         df_sub = df_sub.drop(columns=[c for c in v_cols if c in df_sub.columns])
 
-        # 5. 合并
+        # 5. 合并 (增加 df_inv 的合并)
         if not df_pay.empty:
             df_sub = df_sub.merge(df_pay, on='biz_code', how='left')
+        if not df_inv.empty:
+            df_sub = df_sub.merge(df_inv, on='biz_code', how='left')
         if not df_main_data.empty:
             df_sub = df_sub.merge(df_main_data, on='actual_main_code', how='left')
 
@@ -145,16 +162,17 @@ def enrich_sub_contract_stats(df_sub: pd.DataFrame) -> pd.DataFrame:
 
 def validate_sub_payment_risk(sub_biz_code: str, apply_amount: float) -> tuple[bool, str]:
     """[支付前置风控] 全景透视版：打印每一步的查库结果"""
-    print(f"\n🛡️ --- 风控雷达启动: 目标分包 [{sub_biz_code}] ---")
-    conn = None
-    try:
+    sys_logger.info(f"🛡️ --- 风控雷达启动: 目标分包 [{sub_biz_code}] ---")
+    is_external_conn = conn is not None
+    if not is_external_conn:
         conn = get_connection()
+    try:
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         
         # 1. 查分包底层数据 (全量查出，看有没有漏掉什么字段)
-        cur.execute("SELECT * FROM biz_sub_contracts WHERE biz_code = %s AND deleted_at IS NULL", (sub_biz_code,))
+        cur.execute("SELECT * FROM biz_sub_contracts WHERE biz_code = %s AND deleted_at IS NULL FOR UPDATE", (sub_biz_code,))
         sub_raw = cur.fetchone()
-        print(f"  [侦测] 分包底层数据: {sub_raw}")
+        sys_logger.info(f"  [账本] 该分包总额: {sub_total}...")
         
         if not sub_raw:
             return True, "数据库查无此分包，系统放行"
@@ -169,7 +187,7 @@ def validate_sub_payment_risk(sub_biz_code: str, apply_amount: float) -> tuple[b
                 try: ebm_code = json.loads(sub_raw['extra_props']).get('book_main_code')
                 except: pass
         
-        print(f"  [解析] 提取到归属主合同(EBM): {ebm_code}")
+        sys_logger.info(f"  [解析] 提取到归属主合同(EBM): {ebm_code}")
         
         if not ebm_code:
             return True, "无 EBM 关联，不在风控管辖内，放行"
@@ -182,15 +200,15 @@ def validate_sub_payment_risk(sub_biz_code: str, apply_amount: float) -> tuple[b
         already_paid = float(cur.fetchone()['paid'] or 0)
         future_ratio = (already_paid + float(apply_amount)) / sub_total if sub_total > 0 else 0
         
-        print(f"  [账本] 该分包总额: {sub_total}, 历史已付: {already_paid}, 本次申请: {apply_amount}")
-        print(f"  [测算] 支付后该分包进度将达到: {future_ratio:.2%}")
+        sys_logger.info(f"  [账本] 该分包总额: {sub_total}, 历史已付: {already_paid}, 本次申请: {apply_amount}")
+        sys_logger.info(f"  [测算] 支付后该分包进度将达到: {future_ratio:.2%}")
         
         # 3. 查主合同数据
         cur.execute("SELECT * FROM biz_main_contracts WHERE biz_code = %s AND deleted_at IS NULL", (ebm_code,))
         main_raw = cur.fetchone()
         
         if not main_raw:
-            print(f"  [警告] 找不到关联的账面主合同 [{ebm_code}]！")
+            sys_logger.info(f"  [警告] 找不到关联的账面主合同 [{ebm_code}]！")
             return True, "归属的账面主合同不存在，强制放行"
             
         main_total = float(main_raw.get('contract_amount') or 0)
@@ -199,8 +217,8 @@ def validate_sub_payment_risk(sub_biz_code: str, apply_amount: float) -> tuple[b
         main_coll = float(cur.fetchone()['coll'] or 0)
         main_ratio = main_coll / main_total if main_total > 0 else 0
         
-        print(f"  [账本] 挂靠主合同总额: {main_total}, 已收款: {main_coll}")
-        print(f"  [测算] 挂靠主合同回款进度: {main_ratio:.2%}")
+        sys_logger.info(f"  [账本] 挂靠主合同总额: {main_total}, 已收款: {main_coll}")
+        sys_logger.info(f"  [测算] 挂靠主合同回款进度: {main_ratio:.2%}")
         
         # 4. 决断 (增加 0.1% 的浮点数容错率)
         if future_ratio > (main_ratio + 0.001):
@@ -209,7 +227,8 @@ def validate_sub_payment_risk(sub_biz_code: str, apply_amount: float) -> tuple[b
         return True, "风控测算通过，允许付款"
         
     except Exception as e:
-        print(f"  [异常] 风控引擎崩溃: {e}")
+        sys_logger.error(f"  [异常] 风控引擎崩溃: {e}", exc_info=True)
         return False, f"风控异常: {e}"
     finally:
-        if conn: conn.close()
+        if not is_external_conn and conn: 
+            conn.close()

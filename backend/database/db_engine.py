@@ -57,27 +57,6 @@ def get_current_db_name():
     """返回当前连接的库名"""
     return DB_NAME
 
-def set_current_db(name):
-    """【废弃兼容】PG 时代不动态切库，仅作 pass"""
-    pass
-
-def get_available_dbs():
-    """扫描 PG 实例中所有的数据库列表"""
-    conn = None
-    try:
-        # 连接到系统库查询所有数据库
-        conn = psycopg2.connect(host=DB_HOST, port=DB_PORT, user=DB_USER, password=DB_PASS, dbname='postgres')
-        cur = conn.cursor()
-        cur.execute("SELECT datname FROM pg_database WHERE datistemplate = false;")
-        return [row[0] for row in cur.fetchall()]
-    except:
-        return [DB_NAME]
-    finally:
-        if conn: conn.close()
-
-def check_db_exists(name):
-    """检查特定名称的库是否存在"""
-    return name in get_available_dbs()
 
 # ==========================================
 # 4. 运维指令 (重构为 SQL 指令)

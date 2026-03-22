@@ -12,8 +12,8 @@ warnings.filterwarnings('ignore', category=UserWarning, message='.*SQLAlchemy.*'
 ROOT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
-from backend.database import crud_base
-from backend.database.db_engine import execute_raw_sql
+from backend.database import crud
+from backend.database.db_engine import execute_raw_sql, get_connection
 from backend.config import config_manager as cfg
 import backend.database as db
 
@@ -23,7 +23,7 @@ import components as ui
 
 # 隐藏/只读字段配置
 FORM_HIDDEN_FIELDS = [] 
-FORM_READONLY_FIELDS = ['total_paid', 'total_invoiced_received', 'unpaid_amount']
+FORM_READONLY_FIELDS = ['total_paid', 'total_invoiced_from_sub', 'unpaid_amount']
 
 # ==========================================
 # 0. 页面配置与初始化
@@ -54,7 +54,7 @@ def load_main_contracts_dict(trigger):
 
 def load_sub_financial_history(sub_contract_code, table_type="payments"):
     """拉取分包侧的 纯付款 / 纯收票 历史"""
-    conn = crud_base.get_connection()
+    conn = get_connection()
     try:
         if table_type == "payments":
             sql = '''
@@ -194,10 +194,10 @@ if ui and hasattr(ui, 'style_metric_card'):
     ui.style_metric_card()
 
 if not df_sub.empty:
-    total_cost = df_sub['sub_contract_amount'].astype(float).sum()
+    total_cost = df_sub['sub_amount'].astype(float).sum()
     total_paid = df_sub['total_paid'].astype(float).sum()
-    total_unpaid = df_sub['unpaid_amount'].astype(float).sum()
-    total_inv_rec = df_sub['total_invoiced_received'].astype(float).sum()
+    total_unpaid = df_sub['unpaid_amount'].astype(float).sum() if 'unpaid_amount' in df_sub.columns else 0.0
+    total_inv_rec = df_sub['total_invoiced_from_sub'].astype(float).sum() if 'total_invoiced_from_sub' in df_sub.columns else 0.0
     
     # 核心风控：倒挂欠票金额 = 已付真金白银 - 财务收到的发票
     missing_invoices = total_paid - total_inv_rec
@@ -237,13 +237,16 @@ else:
         
         display_cols = {
             'biz_code': '合同编号',
-            'sub_contractor_name': '分包单位',
-            'sub_contract_amount': '合同金额',
+            'sub_company_name': '分包单位',
+            'sub_amount': '合同金额',
             'total_paid': '累计已付',
             'is_back_to_back': '背靠背', # 🟢 核心防线列
             'settlement_status': '结算状态'
         }
-        
+        for col in display_cols.keys():
+            if col not in df_sub.columns:
+                df_sub[col] = None
+
         df_display = df_sub[list(display_cols.keys())].rename(columns=display_cols)
         df_display.insert(0, '☑️', False)
         
@@ -258,7 +261,7 @@ else:
                 "合同金额": st.column_config.NumberColumn("合同金额", disabled=True, format="¥ %.2f"),
                 "累计已付": st.column_config.NumberColumn("累计已付", disabled=True, format="¥ %.2f"),
             },
-            use_container_width=True, hide_index=True, height=500
+            width="stretch", hide_index=True, height=500
         )
 
     # ------------------------------------------
@@ -274,7 +277,7 @@ else:
         
         col_select, col_edit = st.columns([8, 2])
         with col_select:
-            contract_options = df_sub.apply(lambda row: f"{row['biz_code']} | {row['sub_contractor_name']}", axis=1).tolist()
+            contract_options = df_sub.apply(lambda row: f"{row['biz_code']} | {row['sub_company_name']}", axis=1).tolist()
             default_index = 0
             if auto_selected_biz_code:
                 for i, opt in enumerate(contract_options):
@@ -335,14 +338,14 @@ else:
             with sub_tab_pay:
                 df_pay = load_sub_financial_history(selected_biz_code, "payments")
                 if not df_pay.empty:
-                    st.dataframe(df_pay, use_container_width=True, hide_index=True)
+                    st.dataframe(df_pay, width="stretch", hide_index=True)
                 else:
                     st.info("暂无付款流水")
                     
             with sub_tab_inv:
                 df_inv = load_sub_financial_history(selected_biz_code, "invoices")
                 if not df_inv.empty:
-                    st.dataframe(df_inv, use_container_width=True, hide_index=True)
+                    st.dataframe(df_inv, width="stretch", hide_index=True)
                 else:
                     st.info("暂无收票流水")
 
@@ -357,7 +360,7 @@ else:
                     target_id = int(df_sub[df_sub['biz_code'] == selected_biz_code]['id'].iloc[0])
                     
                     # 🟢 正确的闭合调用
-                    success, msg = crud_base.soft_delete_project(
+                    success, msg = crud.soft_delete_project(
                         project_id=target_id, 
                         table_name=target_table,
                         operator_name=current_user

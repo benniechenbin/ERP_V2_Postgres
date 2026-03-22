@@ -7,6 +7,7 @@ from backend.database.db_engine import get_connection
 
 # 引入刚刚解耦出去的定制表模块
 from backend.database.custom_schema import execute_custom_static_tables
+from backend.utils.logger import sys_logger
 
 # =========================================================
 # 1. 结构探测与工具库 (全部保留您的原始代码)
@@ -235,11 +236,11 @@ def sync_database_schema():
         execute_custom_static_tables(cursor)
         
         conn.commit()
-        print("🚀 [引擎启动] V2.0 数据库架构同步完毕！")
+        sys_logger.info("🚀 [引擎启动] V2.0 数据库架构同步完毕！")
         return True
     except Exception as e:
         if conn: conn.rollback()
-        print(f"❌ 数据库同步失败: {e}")
+        sys_logger.critical(f"❌ 数据库同步失败: {e}")
         return False
     finally:
         if conn: conn.close()

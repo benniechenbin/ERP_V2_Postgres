@@ -5,6 +5,7 @@ from backend.utils import formatters
 from backend.database import db_engine, schema, crud
 from backend.config import config_manager as cfg 
 from backend import services as svc
+from backend.utils.logger import sys_logger
 warnings.filterwarnings('ignore', category=UserWarning, module='openpyxl')
 
 def run_import_process(
@@ -118,7 +119,7 @@ def run_import_process(
             error_details=error_details_dict
         )
     except Exception as log_e:
-        print(f"⚠️ 宏观日志记录失败 (不阻断主流程): {log_e}")
+        sys_logger.warning(f"⚠️ 宏观日志记录失败 (不阻断主流程): {log_e}")
 
     # ==========================================
     # 返回结果拼装

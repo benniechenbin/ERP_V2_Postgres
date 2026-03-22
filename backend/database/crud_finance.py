@@ -6,6 +6,7 @@ from backend.database.db_engine import get_connection
 from backend.database.schema import get_all_data_tables, has_column
 from backend.database.crud_base import upsert_dynamic_record  # 🟢 内部调用基础引擎
 from backend.core.finance_engine import validate_sub_payment_risk
+from backend.utils.logger import sys_logger
 
 
 # ==========================================
@@ -138,29 +139,35 @@ def submit_sub_payment(sub_biz_code: str, payment_amount: float, operator: str, 
     """
     [V2.0 业财安全支付网关] 前端点击“确认付款”时调用的唯一接口
     """
-    # 1. 🚨 呼叫核心风控引擎！
-    passed, msg = validate_sub_payment_risk(sub_biz_code, payment_amount)
-    if not passed:
-        return False, msg  # 风控未过，直接把红色警告返回给前端
-        
-    # 2. 风控通过，安全落库
     conn = None
     try:
         conn = get_connection()
+        
+        # 1. 🚨 把当前连接传给风控引擎，锁定该行！
+        passed, msg = validate_sub_payment_risk(sub_biz_code, payment_amount, conn=conn)
+        if not passed:
+            conn.rollback() # 风控不通过，释放锁
+            sys_logger.warning(f"⛔ 付款被风控拦截 [{sub_biz_code}]: {msg}")
+            return False, msg  
+            
+        # 2. 风控通过，安全落库
         cursor = conn.cursor()
         sql = """
             INSERT INTO biz_outbound_payments 
             (biz_code, sub_contract_code, payment_amount, payment_date, operator, remarks)
             VALUES (%s, %s, %s, %s, %s, %s)
         """
-        # 生成一个流水号 (如 PAY-20231024-001)
         pay_flow_code = f"PAY-{pd.Timestamp.now().strftime('%Y%m%d%H%M%S%f')}"
-        
         cursor.execute(sql, (pay_flow_code, sub_biz_code, payment_amount, payment_date, operator, remarks))
+        
+        # 3. 统一提交事务！
         conn.commit()
+        sys_logger.info(f"✅ 分包付款成功落库 [{pay_flow_code}] 金额: {payment_amount}")
         return True, "✅ 支付记录已安全入库！"
+        
     except Exception as e:
         if conn: conn.rollback()
+        sys_logger.error(f"🚨 付款落库失败 [{sub_biz_code}]: {e}", exc_info=True)
         return False, f"落库失败: {e}"
     finally:
         if conn: conn.close()

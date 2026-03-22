@@ -235,6 +235,6 @@ with c_side:
         if st.button("🛠️ 新增/维护项目", width="stretch"):
             st.switch_page("pages/02_🛠️_主合同管理.py")
         if st.button("📊 查看财务报表", width="stretch"):
-            st.switch_page("pages/03_📊_数据分析.py")
+            st.switch_page("pages/04_📊_数据分析.py")
 
 debug_kit.execute_debug_logic()

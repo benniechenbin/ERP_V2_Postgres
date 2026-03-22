@@ -4,8 +4,8 @@ ERP_V2_PRO 数据库核心引擎 (Database Facade)
 """
 from .db_engine import (
     get_connection, get_readonly_connection, get_current_db_name,
-    get_available_dbs, backup_db, execute_raw_sql, db_health_report,
-    check_db_exists, set_current_db, UPLOAD_DIR, 
+    backup_db, execute_raw_sql, db_health_report,
+    UPLOAD_DIR, 
 )
 from .schema import (
     sync_database_schema, get_all_data_tables,
@@ -23,9 +23,8 @@ from .crud import (
 
 __all__ = [
     "get_connection", "get_readonly_connection", "get_current_db_name", 
-    "get_available_dbs", "backup_db", "execute_raw_sql", "db_health_report", 
-    "check_db_exists", "UPLOAD_DIR", "set_current_db",
-    "sync_database_schema", "get_all_data_tables", 
+     "backup_db", "execute_raw_sql", "db_health_report", 
+    "UPLOAD_DIR", "sync_database_schema", "get_all_data_tables", 
     "has_column", "get_table_schema", "get_table_columns",
     "upsert_dynamic_record", "fetch_dynamic_records", "delete_dynamic_record",
     "check_project_existence",

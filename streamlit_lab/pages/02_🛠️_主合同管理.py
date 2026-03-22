@@ -453,7 +453,7 @@ else:
                 "累计到账": st.column_config.NumberColumn("累计到账", disabled=True, format="¥ %.2f"),
                 "未到账金额": st.column_config.NumberColumn("未到账金额", disabled=True, format="¥ %.2f"),
             },
-            use_container_width=True, hide_index=True, height=500, key="main_contract_editor" 
+            width="stretch", hide_index=True, height=500, key="main_contract_editor" 
         )
 
         # 🟢 魔法引擎：静默捕捉左侧表格的“项目阶段”修改，立刻存库！
@@ -604,7 +604,7 @@ else:
                     
                     edited_coll = st.data_editor(
                         df_coll, 
-                        use_container_width=True, 
+                        width="stretch", 
                         hide_index=True,
                         disabled=["流水号", "收款日期", "金额(元)", "对应节点", "经办人", "备注", "录入时间"], # 冻结原有数据，禁止行内直改
                         column_config={
@@ -638,7 +638,7 @@ else:
                     
                     edited_inv = st.data_editor(
                         df_inv, 
-                        use_container_width=True, 
+                        width="stretch", 
                         hide_index=True,
                         disabled=["发票号", "开票日期", "金额(元)", "关联计划", "经办人", "备注", "录入时间"],
                         column_config={
@@ -687,7 +687,7 @@ else:
                     "预警日期": st.column_config.DateColumn("预警日期"),
                     "备注": st.column_config.TextColumn("补充说明")
                 },
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
                 key=editor_key
             )

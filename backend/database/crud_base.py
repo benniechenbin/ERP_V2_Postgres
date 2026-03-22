@@ -88,18 +88,20 @@ def upsert_dynamic_record(model_name: str, data_dict: dict, record_id: int = Non
                 # (C) 留底案：只要有差异，就静默写入审计表
                 if diff_data:
                     audit_sql = """
-                        INSERT INTO sys_audit_logs (table_name, biz_code, operator_id, operator_name, action, diff_data) 
-                        VALUES (%s, %s, %s, %s, %s, %s)
+                        INSERT INTO sys_audit_logs (model_name, biz_code, operator_name, action, diff_data) 
+                        VALUES (%s, %s, %s, %s, %s)
                     """
-                    cursor.execute(audit_sql, (table_name, biz_code, operator_id, operator_name, 'UPDATE', json.dumps(diff_data, ensure_ascii=False)))
+                    
+                    cursor.execute(audit_sql, (model_name, biz_code, operator_name, 'UPDATE', json.dumps(diff_data, ensure_ascii=False)))
         
         else:
             # 如果是新增记录，直接在审计表记一笔 "创建"
             audit_sql = """
-                INSERT INTO sys_audit_logs (table_name, biz_code, operator_id, operator_name, action, diff_data) 
-                VALUES (%s, %s, %s, %s, %s, %s)
+                INSERT INTO sys_audit_logs (model_name, biz_code, operator_name, action, diff_data) 
+                VALUES (%s, %s, %s, %s, %s)
             """
-            cursor.execute(audit_sql, (table_name, biz_code, operator_id, operator_name, 'INSERT', json.dumps({"status": ["无", "首次创建数据"]}, ensure_ascii=False)))
+            
+            cursor.execute(audit_sql, (model_name, biz_code, operator_name, 'INSERT', json.dumps({"status": ["无", "首次创建数据"]}, ensure_ascii=False)))
 
         # ========================================================
         # 4. 物理写入：执行真正的 UPDATE 或 INSERT

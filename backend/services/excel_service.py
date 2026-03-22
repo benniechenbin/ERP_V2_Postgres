@@ -5,6 +5,7 @@ import json
 import os
 
 from backend.config import config_manager
+from backend.utils.logger import sys_logger
 
 # =========================================================
 # 模块 1: 表头识别与构建
@@ -100,7 +101,7 @@ def _ffill_attributes_only(df):
             targets.append(c)
     for c in targets:
         try: df[c] = df[c].ffill()
-        except: pass
+        except: sys_logger.debug(f"清洗单元格异常: {e}")
     return df
 
 def drop_empty_name_and_code_rows(df):
