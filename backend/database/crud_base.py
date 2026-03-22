@@ -7,14 +7,14 @@ from backend.config import config_manager as cfg
 from backend.database.db_engine import get_connection, sql_engine
 from backend.database.schema import get_all_data_tables
 from backend.core import core_logic  # 用于应用业务公式
+from backend.utils.formatters import normalize_db_value
+from backend.utils.logger import sys_logger
 
 def upsert_dynamic_record(model_name: str, data_dict: dict, record_id: int = None, operator_id: int = 0, operator_name: str = 'System'):
     """
     [V2.0 混合架构写入引擎 + 全自动审计拦截器]
     自带智能分拣，并全自动记录数据变更历史 (时光机)。
     """
-    from backend.config import config_manager as cfg
-    import json
     
     model_config = cfg.get_model_config(model_name)
     table_name = model_config.get("table_name")
@@ -22,8 +22,7 @@ def upsert_dynamic_record(model_name: str, data_dict: dict, record_id: int = Non
     if not table_name: return False, "未找到模型配置"
         
     conn = None
-    try:
-        from backend.database.db_engine import get_connection # 确保局部导入或在文件头已导入
+    try:# 确保局部导入或在文件头已导入
         conn = get_connection()
         cursor = conn.cursor()
         
@@ -51,7 +50,8 @@ def upsert_dynamic_record(model_name: str, data_dict: dict, record_id: int = Non
         if not physical_data: return False, "没有有效的写入数据"
 
         keys = list(physical_data.keys())
-        values = list(physical_data.values())
+        raw_values = list(physical_data.values())
+        values = [normalize_db_value(v) for v in raw_values] 
         biz_code = data_dict.get('biz_code', 'UNKNOWN') # 获取业务编号，用于审计追踪
         
         # ========================================================
@@ -121,6 +121,7 @@ def upsert_dynamic_record(model_name: str, data_dict: dict, record_id: int = Non
         
     except Exception as e:
         if conn: conn.rollback()
+        sys_logger.error(f"🚨 数据写入失败 [{model_name}]: {e}", exc_info=True)
         return False, str(e)
     finally:
         if conn: conn.close()
@@ -166,10 +167,6 @@ def fetch_dynamic_records(model_name: str, keyword: str = "") -> pd.DataFrame:
                 
         query += ' ORDER BY updated_at DESC'
         
-        # 3. 🟢 核心修复点：
-        # A. 使用 conn 替换 sql_engine，绕过 SQLAlchemy 的严格检查。
-        # B. 强制将 params 转换为 tuple。
-        df = pd.read_sql_query(query, conn, params=tuple(params) if params else None)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", UserWarning)
             df = pd.read_sql_query(query, conn, params=tuple(params) if params else None)

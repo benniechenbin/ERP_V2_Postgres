@@ -26,8 +26,12 @@ services:
       - DB_USER=erp_admin
       - DB_PASS=admin
       - DB_NAME=erp_core_db
+      - TZ=Asia/Shanghai            # 修正时区
+      - PYTHONUNBUFFERED=1     
     ports:
       - "8501:8501"
+    volumes:
+      - ./host_data/uploads:/app/data/uploads 
 
 # 🟢 关键修复：在这里声明上面用到的持久化卷
 volumes:

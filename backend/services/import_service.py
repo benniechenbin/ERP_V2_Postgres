@@ -40,7 +40,7 @@ def run_import_process(
         try:
             conn = db_engine.get_connection()
             cursor = conn.cursor()
-            cursor.execute(f'DELETE FROM "{table_name}" WHERE source_file = %s AND sheet_name = %s', 
+            cursor.execute(f'UPDATE "{table_name}" SET deleted_at = CURRENT_TIMESTAMP WHERE source_file = %s AND sheet_name = %s', 
                            (file_name, target_sheet_name))
             conn.commit()
         except Exception:

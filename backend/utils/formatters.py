@@ -1,6 +1,8 @@
 import pandas as pd
 from datetime import datetime
 import re
+import numpy as np
+from decimal import Decimal
 
 # ==========================================
 # 📅 日期处理 (原 date_tools.py)
@@ -97,3 +99,29 @@ def clean_whitespace(text):
     if not isinstance(text, str):
         return text
     return " ".join(text.split())
+
+def normalize_db_value(value):
+    """
+    [数据库安检门] 将各类复杂的 Numpy / Pandas / Decimal 类型
+    强制收敛为 PostgreSQL 原生认识的 Python 基础类型。
+    """
+    import pandas as pd # 确保文件顶部有 import pandas as pd
+    
+    # 1. 拦截各种空值 (NaN, NaT, None) -> 转为数据库的原生 NULL
+    if pd.isna(value) or value is None:
+        return None
+        
+    # 2. 拦截 Numpy 整数 -> 转为原生 int
+    if isinstance(value, (np.integer, int)):
+        return int(value)
+        
+    # 3. 拦截 Numpy 浮点数、Decimal -> 转为原生 float
+    if isinstance(value, (np.floating, float, Decimal)):
+        return float(value)
+        
+    # 4. 拦截字符串 -> 去除首尾空格，且把纯空字符串转为 NULL
+    if isinstance(value, str):
+        val_str = value.strip()
+        return val_str if val_str != "" else None
+        
+    return value

@@ -347,21 +347,31 @@ else:
                     st.info("暂无收票流水")
 
         # ================= Tab 3: 审计 =================
-        with tab_audit:
-            st.markdown("#### 🗑️ 合同作废")
-            if st.button("🗑️ 软删除该分包合同", use_container_width=True):
-                target_table = cfg.get_model_config("sub_contract").get("table_name", "biz_sub_contracts")
-                success, msg = crud.soft_delete_project(
+            with tab_audit:
+                st.markdown("#### 🗑️ 合同作废")
+                if st.button("🗑️ 软删除该分包合同", use_container_width=True):
+                    target_table = cfg.get_model_config("sub_contract").get("table_name", "biz_sub_contracts")
+                    current_user = st.session_state.get('user_name', 'System')
+                    
+                    # 🟢 必须先算出 target_id
+                    target_id = int(df_sub[df_sub['biz_code'] == selected_biz_code]['id'].iloc[0])
+                    
+                    # 🟢 正确的闭合调用
+                    success, msg = crud_base.soft_delete_project(
                         project_id=target_id, 
                         table_name=target_table,
                         operator_name=current_user
-                if db.execute_raw_sql(sql, (selected_biz_code,))[0]:
-                    st.toast("已安全移入系统全局回收站", icon="🗑️")
-                    trigger_refresh()
-                    st.rerun()
-            
-            st.markdown("---")
-            if ui and hasattr(ui, 'render_audit_timeline'):
-                ui.render_audit_timeline(selected_biz_code, "sub_contract")
+                    )
+                    
+                    if success:
+                        st.toast("已安全移入系统全局回收站", icon="🗑️")
+                        trigger_refresh()
+                        st.rerun()
+                    else:
+                        st.error(f"作废失败: {msg}")
+                
+                st.markdown("---")
+                if ui and hasattr(ui, 'render_audit_timeline'):
+                    ui.render_audit_timeline(selected_biz_code, "sub_contract")
 
 debug_kit.execute_debug_logic()

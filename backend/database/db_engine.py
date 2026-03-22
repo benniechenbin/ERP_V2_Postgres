@@ -8,6 +8,7 @@ import pandas as pd
 from datetime import datetime
 from pathlib import Path
 from sqlalchemy import create_engine
+from backend.utils.logger import sys_logger 
 
 # ==========================================
 # 1. 路径配置 (仅用于附件 UPLOAD)
@@ -33,25 +34,17 @@ sql_engine = create_engine(
 )
 
 def get_connection():
+    """
+    🟢 架构升级：直接从 SQLAlchemy 的连接池中借用底层 psycopg2 连接！
+    不仅免费获得了企业级连接池的防并发保护，用完 close() 时还会自动放回池子。
+    """
     try:
-        conn = psycopg2.connect(
-            host=DB_HOST,
-            port=DB_PORT,
-            user=DB_USER,
-            password=DB_PASS,
-            dbname=DB_NAME
-        )
-        return conn
+        return sql_engine.raw_connection()
     except Exception as e:
-        # 如果是 UnicodeDecodeError，说明是 Windows 在报中文错误
-        if isinstance(e, UnicodeDecodeError):
-            # 这里的 e.object 是原始字节，手动用 GBK 解码它
-            raw_msg = e.object.decode('gbk', errors='ignore')
-            print(f"🚨 数据库连接失败 (已解码): {raw_msg}")
-        else:
-            print(f"🚨 数据库连接失败: {e}")
+        # 🟢 替换原来的 print，把致命错误记录到日志
+        sys_logger.error(f"🚨 数据库连接池获取失败: {e}", exc_info=True)
         raise e
-
+        
 def get_readonly_connection(db_name=None):
     """【兼容性】实验室只读连接"""
     return get_connection()

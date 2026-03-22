@@ -243,7 +243,3 @@ def sync_database_schema():
         return False
     finally:
         if conn: conn.close()
-
-def init_db():
-    """向后兼容的别名接口"""
-    sync_database_schema()
