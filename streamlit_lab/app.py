@@ -4,7 +4,8 @@
 import sys
 from pathlib import Path
 import time
-
+import warnings
+warnings.filterwarnings('ignore', category=UserWarning, message='.*SQLAlchemy.*')
 # 获取当前 app.py 的父目录(streamlit_lab) 的父目录(ERP_V2_PRO)
 ROOT_DIR = Path(__file__).resolve().parent.parent
 # 强制把根目录插队到 Python 搜索列表的第 0 号位置！
@@ -27,6 +28,8 @@ import sidebar_manager
 import debug_kit
 
 st.set_page_config(page_title="建筑专项管理系统", page_icon="🏗️", layout="wide")
+if 'user_name' not in st.session_state:
+    st.session_state['user_name'] = '管理员(单机试用)'
 # 1. 侧边栏
 sidebar_manager.render_sidebar()
 # ==========================================
@@ -100,7 +103,14 @@ def load_global_stats():
 def load_upcoming_receivables():
     """获取 30 天内及已逾期的待收款计划"""
     # 1. 获取主合同和收款计划表
-    df_plans = db.fetch_dynamic_records(model_name="payment_plan")
+    conn = db.get_connection()
+    try:
+        df_plans = pd.read_sql_query("SELECT * FROM biz_payment_plans WHERE deleted_at IS NULL", conn)
+    except Exception as e:
+        print(f"首页预警读取失败: {e}")
+        df_plans = pd.DataFrame()
+    finally:
+        conn.close()
     df_contracts = db.fetch_dynamic_records(model_name="main_contract")
     
     if df_plans.empty:

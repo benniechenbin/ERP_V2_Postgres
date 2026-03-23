@@ -2,40 +2,27 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import sys
+import warnings
 from pathlib import Path
 
-# 确保能找到 backend 模块
-ROOT_DIR = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT_DIR))
+# 🟢 1. 环境与路径初始化
+warnings.filterwarnings('ignore', category=UserWarning, message='.*SQLAlchemy.*')
+ROOT_DIR = Path(__file__).resolve().parent.parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
+# 🟢 2. 引入后端服务与组件
+from backend.database import crud_base, crud
 from backend.database.db_engine import execute_raw_sql
 from backend.config import config_manager as cfg
 import backend.database as db
-from backend.database import crud
 from backend import services as svc
+# 核心 AI 提取接口
+from backend.services.ai_service import get_main_contract_elements 
 
 import sidebar_manager
 import debug_kit 
 import components as ui
-# ==========================================
-# 0. 页面配置与初始化
-# ==========================================
-import streamlit as st
-import pandas as pd
-from datetime import datetime
-import sys
-import warnings
-from pathlib import Path
-
-# 🟢 彻底静默 pandas 的 SQLAlchemy 警告
-warnings.filterwarnings('ignore', category=UserWarning, message='.*SQLAlchemy.*')
-
-# 确保能找到 backend 和 components 模块
-ROOT_DIR = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT_DIR))
-
-from backend.database import crud_base
-from backend.database.db_engine import execute_raw_sql
 
 FORM_HIDDEN_FIELDS = [] 
 FORM_READONLY_FIELDS = []
@@ -45,6 +32,11 @@ FORM_READONLY_FIELDS = []
 # ==========================================
 st.set_page_config(page_title="主合同管理", page_icon="🛠️", layout="wide")
 
+if 'show_main_contract_dialog' not in st.session_state:
+    st.session_state.show_main_contract_dialog = False
+if 'current_edit_data' not in st.session_state:
+    st.session_state.current_edit_data = None
+    
 if 'refresh_trigger' not in st.session_state:
     st.session_state.refresh_trigger = 0
 
@@ -71,7 +63,7 @@ def load_payment_plans(main_contract_code):
         WHERE main_contract_code = %s AND deleted_at IS NULL
         ORDER BY planned_date ASC, id ASC
     '''
-    conn = crud_base.get_connection()
+    conn = db.get_connection()
     try:
         with conn.cursor() as cur:
             # 🟢 修正点：显式传递参数元组，原生执行
@@ -96,7 +88,7 @@ def load_financial_history(main_contract_code, table_type="collections"):
     统一的历史记录拉取函数
     table_type: 'collections' (收款) 或 'invoices' (开票)
     """
-    conn = crud_base.get_connection()
+    conn = db.get_connection()
     try:
         if table_type == "collections":
             sql = '''
@@ -136,7 +128,7 @@ def load_financial_history(main_contract_code, table_type="collections"):
 
 def save_payment_plans(main_contract_code, df_plans, operator, total_contract_amount):
     """全量覆盖保存：先清空，后写入，确保数据唯一"""
-    conn = crud_base.get_connection()
+    conn = db.get_connection()
     try:
         with conn.cursor() as cursor:
             # 🟢 1. 强力清场：必须先删除该合同下所有旧计划
@@ -190,119 +182,127 @@ sidebar_manager.render_sidebar()
 # ==========================================
 # 2. 主合同表单弹窗
 # ==========================================
-@st.dialog("📝 主合同信息登记", width="large")
+@st.dialog("🏗️ 主合同信息登记", width="large")
 def contract_form_dialog(existing_data=None):
-    if ui and hasattr(ui, 'render_dynamic_form'):
-        
-        # ==========================================
-        # 🟢 1. 附件归档与 AI 智能解析区
-        # ==========================================
-        st.subheader("🤖 AI 合同智能解析")
-        
-        # 🆙 第一层：拖拽上传区 (单独占满整行，视觉焦点)
-        uploaded_files = st.file_uploader("📂 请拖拽或选择待解析合同 (支持 PDF/Word)", accept_multiple_files=True)
-        
-        # ⬇️ 第二层：操作区 (左长右短，完美对齐)
-        c_cat, c_btn = st.columns([3, 1])
-        
-        with c_cat:
-            # 使用 collapsed 隐藏 label，让下拉框和右侧的按钮在同一水平线上绝对对齐
-            file_category = st.selectbox(
-                "🗂️ 附件类别", 
-                ["主合同文本 (需 AI 解析)", "补充协议/变更单 (需 AI 解析)", "工程图纸", "往来函件", "结算单", "其他附件"],
-                label_visibility="collapsed" 
-            )
-            
-        with c_btn:
-            # 只有上传了文件，且类别属于“需 AI 解析”时，按钮才可用
-            ai_ready = uploaded_files is not None and len(uploaded_files) > 0 and "(需 AI 解析)" in file_category
-            
-            # 按钮与左侧下拉框高度完美匹配
-            if st.button("✨ 一键 AI 提取", type="primary", disabled=not ai_ready, use_container_width=True):
-                with st.spinner("🧠 AI 正在极速阅读合同条款，请稍候约 15 秒..."):
-                    import time
-                    time.sleep(2) # 【预留钩子】明天这里将替换为真正的 AI 调用！
-                    
-                    # 【模拟 AI 的返回结果】
-                    mock_ai_result = {
-                        "project_name": "AI自动识别：经十一路项目",
-                        "client_name": "济南万科企业有限公司",
-                        "contract_amount": 1500000,
-                        "contract_nature": "施工总承包"
-                    }
-                    
-                    # 将 AI 结果合并到当前数据字典中
-                    if existing_data is None:
-                        existing_data = {}
-                    existing_data.update(mock_ai_result)
-                    
-                    st.success("🎉 提取完毕！下方表单已更新。")
-                    # 无需 rerun，渲染引擎会自动捕捉 existing_data 的变化
+    # 状态初始化：用于存放 AI 提取出的数据
+    if "ai_extracted_buffer" not in st.session_state:
+        st.session_state.ai_extracted_buffer = {}
 
-        st.markdown("---") # 分割线
-
-        # 🟢 2. 智能判断：是新增还是编辑？
-        is_edit = existing_data is not None
-        form_title = "✏️ 修改主合同" if is_edit else "🆕 录入新主合同"
-        
-        # 🟢 3. 自动编号注入
-        if not is_edit:
-            # 动态获取底层物理表名
-            target_table = cfg.get_model_config("main_contract").get("table_name", "biz_main_contracts")
-            # 召唤 crud_base 的自动编号生成器，前缀使用 MAIN
-            new_biz_code = crud_base.generate_biz_code(target_table, prefix_char="MAIN")
-            current_data = {'biz_code': new_biz_code}
-        else:
-            current_data = existing_data
-            
-        # 🟢 4. 渲染出三列的高级表单
-        result = ui.render_dynamic_form(
-            "main_contract", 
-            form_title, 
-            current_data, # 把拼装好的数据喂进去
-            hidden_fields=FORM_HIDDEN_FIELDS,
-            readonly_fields=FORM_READONLY_FIELDS
+    # 1. 🤖 AI 解析交互区
+    st.subheader("🤖 AI 合同智能解析")
+    uploaded_files = st.file_uploader("📂 请上传合同 PDF 或 Word 以供 AI 识别", accept_multiple_files=True)
+    
+    c_cat, c_btn = st.columns([3, 1])
+    with c_cat:
+        file_category = st.selectbox(
+            "🗂️ 附件类别", 
+            ["主合同文本 (需 AI 解析)", "补充协议/变更单 (需 AI 解析)", "工程图纸", "结算单", "其他附件"],
+            label_visibility="collapsed" 
         )
+    with c_btn:
+        # 只有上传了文件，且类别属于“需 AI 解析”时，按钮才可用
+        ai_ready = uploaded_files is not None and len(uploaded_files) > 0 and "(需 AI 解析)" in file_category
         
-        if result:
-            # 防御机制：提取并确保有最终的 biz_code
-            final_biz_code = result.get('biz_code', current_data.get('biz_code'))
-            result['biz_code'] = final_biz_code
-            
-            target_id = int(existing_data['id']) if is_edit and 'id' in existing_data else None
-            current_user = st.session_state.get('user_name', '当前系统用户')
-            
-            # 1. 拦截“修改编号”事件，触发超级级联更新
-            if is_edit and final_biz_code != existing_data.get('biz_code'):
-                from backend.database.crud_sys import update_biz_code_cascade
-                target_table = cfg.get_model_config("main_contract").get("table_name", "biz_main_contracts")
-                update_biz_code_cascade(existing_data.get('biz_code'), final_biz_code, target_table)
-            
-            # 2. 保存主表数据
-            success, msg = crud_base.upsert_dynamic_record(
-                model_name="main_contract", 
-                data_dict=result, 
-                record_id=target_id,
-                operator_name=current_user
-            )
-            
-            if success:
-                # 🟢 3. 处理刚刚上传的附件
-                if uploaded_files:
-                    target_table = cfg.get_model_config("main_contract").get("table_name", "biz_main_contracts")
-                    for uf in uploaded_files:
-                        # 🟢 把前端选好的类别传给底层！
-                        svc.save_attachment(final_biz_code, uf, target_table, file_category=file_category)
-                    ui.show_toast_success(f"主合同及【{file_category}】已成功保存！")
-                else:
-                    ui.show_toast_success("主合同数据保存成功！")
+        if st.button("✨ 一键 AI 提取", type="primary", disabled=not ai_ready, use_container_width=True):
+            with st.spinner("🧠 AI 正在极速阅读合同条款，请稍候..."):
+                
+                # 🟢 呼叫真实的后端 AI 接口
+                # 🟢 呼叫真实的后端 AI 接口
+                ai_results = get_main_contract_elements(uploaded_files[0])
+                
+                if ai_results:
+                    # 拿到当前表单的字段配置，用来知道哪个框是什么类型
+                    field_meta = cfg.get_field_meta("main_contract")
                     
-                trigger_refresh() 
-                st.rerun()
-            else:
-                ui.show_toast_error(f"保存失败: {msg}")       
-    else:
-        st.error("组件库加载失败，无法渲染表单。")
+                    for k, v in ai_results.items():
+                        # 如果 AI 没提取到，或者是空值，就直接跳过
+                        if v is None or str(v).strip().lower() in ["", "null", "none"]:
+                            continue
+                            
+                        state_key = f"input_{k}"
+                        # 获取这个字段在配置里的真实类型，默认是文本
+                        f_type = field_meta.get(k, {}).get("type", "text")
+                        
+                        try:
+                            # 🟢 终极填表魔法 3：精准类型转换！满足 Streamlit 组件的变态要求
+                            if f_type == "date":
+                                # 把 "2025-06-30" 这样的字符串，变成真正的 datetime.date 对象
+                                parsed_date = datetime.strptime(str(v)[:10], "%Y-%m-%d").date()
+                                st.session_state[state_key] = parsed_date
+                            elif f_type in ["money", "number", "percent"]:
+                                # 数字类组件需要 float
+                                st.session_state[state_key] = float(v)
+                            else:
+                                # 其他文本类组件需要 string
+                                st.session_state[state_key] = str(v)
+                        except Exception as e:
+                            # 万一 AI 犯傻（比如把日期写成“年底”），转换失败就跳过这个字段，不引发崩溃
+                            pass
+                    
+                    # 存入 buffer
+                    st.session_state.ai_extracted_buffer = ai_results
+                    st.success("🎉 提取完毕！下方表单已自动填充。")
+                    
+                    # 强制刷新
+                    st.rerun() 
+                else:
+                    st.error("❌ 识别失败，未能提取出有效数据。")
+
+    st.markdown("---") 
+
+    # 🟢 2. 数据准备与合并
+    is_edit = existing_data is not None
+    form_title = "✏️ 修改主合同" if is_edit else "🆕 录入新主合同"
+    
+    # 建立一个干净的数据副本
+    current_data = existing_data.copy() if existing_data else {}
+    
+    if not is_edit:
+        target_table = cfg.get_model_config("main_contract").get("table_name", "biz_main_contracts")
+        current_data['biz_code'] = crud_base.generate_biz_code(target_table, prefix_char="MAIN")
+        
+    # 无论是新增还是修改，只要 AI 提取了，就把它融合进去
+    if st.session_state.get("ai_extracted_buffer"):
+        current_data.update(st.session_state.ai_extracted_buffer)
+        
+    # 3. 渲染出高级表单
+    result = ui.render_dynamic_form(
+        "main_contract", 
+        form_title, 
+        current_data, 
+        hidden_fields=FORM_HIDDEN_FIELDS,
+        readonly_fields=FORM_READONLY_FIELDS
+    )
+    
+    # 4. 保存逻辑
+    if result:
+        final_biz_code = result.get('biz_code', current_data.get('biz_code'))
+        target_id = int(existing_data['id']) if is_edit and 'id' in existing_data else None
+        current_user = st.session_state.get('user_name', 'System')
+        
+        # 处理编号变更后的级联更新
+        if is_edit and final_biz_code != existing_data.get('biz_code'):
+            db.update_biz_code_cascade(existing_data.get('biz_code'), final_biz_code, "biz_main_contracts")
+        
+        success, msg = crud_base.upsert_dynamic_record("main_contract", result, record_id=target_id, operator_name=current_user)
+        
+        if success:
+            # 1. 物理保存附件
+            if uploaded_files:
+                target_table = cfg.get_model_config("main_contract").get("table_name", "biz_main_contracts")
+                for uf in uploaded_files:
+                    svc.save_attachment(final_biz_code, uf, target_table, file_category=file_category)
+            
+            # 2. 清理所有状态与缓存！(必须放在循环外面)
+            st.session_state.ai_extracted_buffer = {}
+            st.session_state.show_main_contract_dialog = False # 🟢 彻底关闭弹窗开关
+            
+            # 3. 提示并刷新页面
+            ui.show_toast_success("主合同数据已成功落库！")
+            trigger_refresh() 
+            st.rerun()
+        else:
+            ui.show_toast_error(f"保存失败: {msg}")
 # ==========================================
 # 2. 📊 顶层：全局资金看板 
 # ==========================================
@@ -342,15 +342,22 @@ def yearly_archive_dialog():
         else:
             st.error(msg)
 
+if st.session_state.show_main_contract_dialog:
+    contract_form_dialog(st.session_state.current_edit_data)
+
 col_title, col_add_btn, col_archive_btn = st.columns([6, 2, 2])
 with col_title:
     st.title("🛠️ 主合同资金管理台")
 with col_add_btn:
-    st.write("") # 占位往下挤一点对齐
+    # 🟢 用 CSS 给出精确的下压边距，取代不稳定的 st.write("")
+    st.markdown("<div style='margin-top: 22px;'></div>", unsafe_allow_html=True)
     if st.button("➕ 录入新主合同", type="primary", use_container_width=True):
-        contract_form_dialog() 
+        st.session_state.show_main_contract_dialog = True
+        st.session_state.current_edit_data = None # 新增模式
+        st.rerun()
+        
 with col_archive_btn:
-    st.write("") 
+    st.markdown("<div style='margin-top: 22px;'></div>", unsafe_allow_html=True)
     if st.button("📦 年度财务结转", use_container_width=True, help="将所有已计提的项目移入历史档案"):
         yearly_archive_dialog()
 
@@ -506,10 +513,11 @@ else:
             selected_biz_code = selected_contract_str.split(" | ")[0]
         
         with col_edit:
-            if st.button("✏️ 修改", use_container_width=True, help="修改当前选中的主合同信息"):
-                # 提取当前选中行的所有数据，转成字典传给弹窗
+            if st.button("✏️ 修改", use_container_width=True):
                 current_contract_data = df_main[df_main['biz_code'] == selected_biz_code].iloc[0].to_dict()
-                contract_form_dialog(existing_data=current_contract_data)
+                st.session_state.show_main_contract_dialog = True
+                st.session_state.current_edit_data = current_contract_data
+                st.rerun()
         current_stage = df_main[df_main['biz_code'] == selected_biz_code]['project_stage'].fillna("未设置").iloc[0]
         # 🟢 核心重构：创建三个标签页
         current_contract_amount = float(df_main[df_main['biz_code'] == selected_biz_code]['contract_amount'].iloc[0])

@@ -90,7 +90,13 @@ def render_smart_widget(col_name, label, val, col_type, config_type, is_disabled
             
     else:
         default_str = str(val) if val is not None else ""
-        return st.text_input(label, value=default_str, disabled=is_disabled, key=f"input_{col_name}")
+        widget_key = f"input_{col_name}"
+    
+    # 🟢 增加智能判断：如果 session state 里已经有这个 key，就不传 value 参数
+        if widget_key in st.session_state:
+            return st.text_input(label, disabled=is_disabled, key=widget_key)
+        else:
+            return st.text_input(label, value=default_str, disabled=is_disabled, key=widget_key)
 
 def show_toast_success(msg):
     st.toast(f"✅ {msg}", icon="🎉")

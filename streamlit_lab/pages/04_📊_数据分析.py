@@ -47,11 +47,15 @@ def load_analysis_data():
 
         df_list = []
         for tbl in all_tables:
-            # 🟢 破局关键：绕过黑盒！直接用 SQL 读取。
-            # 兼容老数据：把 is_active 为 NULL (空) 的老数据，也当做有效项目抓出来！
-            query = f'SELECT * FROM "{tbl}" WHERE is_active IS NULL OR is_active = 1'
+            # 🟢 修正 1：V2.0 架构中，有效数据不再用 is_active，而是用 deleted_at IS NULL
+            query = f'SELECT * FROM "{tbl}" WHERE deleted_at IS NULL'
             try:
-                tmp_df = pd.read_sql_query(query, engine)
+                import warnings
+                with warnings.catch_warnings():
+                    warnings.simplefilter('ignore', UserWarning)
+                    # 🟢 修正 2：把报错的 engine 换成原生的 conn！
+                    tmp_df = pd.read_sql_query(query, conn) 
+                
                 if not tmp_df.empty:
                     tmp_df['origin_table'] = tbl 
                     df_list.append(tmp_df)
@@ -60,6 +64,7 @@ def load_analysis_data():
                 
         if not df_list:
             return pd.DataFrame(), "所有表均无有效数据"
+            
             
         df = pd.concat(df_list, ignore_index=True)
 

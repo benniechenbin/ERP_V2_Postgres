@@ -12,12 +12,12 @@ from .file_service import (
     save_attachment
     )
 from .project_service import update_biz_code_cascade
-from .analysis_service import (
-    get_all_flows_dataframe,
-    get_financial_report
-)
+from .analysis_service import get_cash_flow_trend
 from .excel_service import clean_excel,smart_classify_header
-from .ai_service import AIService
+from .ai_service import (
+    extract_text_from_upload,
+    get_main_contract_elements
+)
 
 __all__ = [
     "run_import_process",
@@ -27,9 +27,10 @@ __all__ = [
     "delete_flow_record",
     "recalculate_project_total",
     "update_biz_code_cascade",
-    "get_all_flows_dataframe",
-    "get_financial_report",
+    "get_cash_flow_trend",
     "clean_excel",
     "smart_classify_header",
-    "AIService","save_attachment"
+    "extract_text_from_upload",
+    "get_main_contract_elements",
+    "save_attachment"
 ]

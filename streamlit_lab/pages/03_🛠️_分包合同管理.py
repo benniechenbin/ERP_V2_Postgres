@@ -126,7 +126,7 @@ def sub_contract_form_dialog(existing_data=None):
         
         if not is_edit:
             target_table = cfg.get_model_config("sub_contract").get("table_name", "biz_sub_contracts")
-            new_biz_code = crud_base.generate_biz_code(target_table, prefix_char="SUB")
+            new_biz_code = crud.generate_biz_code(target_table, prefix_char="SUB")
             current_data = {'biz_code': new_biz_code}
         else:
             current_data = existing_data
@@ -154,12 +154,27 @@ def sub_contract_form_dialog(existing_data=None):
         )
         
         if result:
+            # =======================================================
+            # 🟢 极简平替魔法：尊崇账面 EBM，单向自动推演实际关联
+            # =======================================================
+            book_code = result.get('book_main_code')
+            actual_code = result.get('actual_main_code')
+            
+            # 1. 绝对正统逻辑：填了账面（发票资金归属），没填实际（干活归属），自动补齐
+            if book_code and not actual_code:
+                result['actual_main_code'] = book_code
+                
+            # 2. 财务防线兜底：万一业务员不懂规矩，只填了实际干活的项目，
+            # 系统必须强制把它也变成账面项目，坚决不允许 book_main_code 为空（防风控击穿）
+            elif actual_code and not book_code:
+                result['book_main_code'] = actual_code
+            # =======================================================
             final_biz_code = result.get('biz_code', current_data.get('biz_code'))
             result['biz_code'] = final_biz_code
             target_id = int(existing_data['id']) if is_edit and 'id' in existing_data else None
             current_user = st.session_state.get('user_name', 'System')
             
-            success, msg = crud_base.upsert_dynamic_record(
+            success, msg = crud.upsert_dynamic_record(
                 model_name="sub_contract", 
                 data_dict=result, 
                 record_id=target_id,
@@ -240,7 +255,8 @@ else:
             'sub_company_name': '分包单位',
             'sub_amount': '合同金额',
             'total_paid': '累计已付',
-            'is_back_to_back': '背靠背', # 🟢 核心防线列
+            'current_payable': '本期应付', # 🟢 增加这行！
+            'is_back_to_back': '背靠背', 
             'settlement_status': '结算状态'
         }
         for col in display_cols.keys():
@@ -250,7 +266,6 @@ else:
         df_display = df_sub[list(display_cols.keys())].rename(columns=display_cols)
         df_display.insert(0, '☑️', False)
         
-        # 确保布尔值正确渲染
         df_display['背靠背'] = df_display['背靠背'].apply(lambda x: True if str(x).lower() in ['true', '1', '是'] else False)
 
         edited_df = st.data_editor(
@@ -260,6 +275,7 @@ else:
                 "背靠背": st.column_config.CheckboxColumn("背靠背条款", help="打勾代表需等甲方付款后才付款", disabled=True),
                 "合同金额": st.column_config.NumberColumn("合同金额", disabled=True, format="¥ %.2f"),
                 "累计已付": st.column_config.NumberColumn("累计已付", disabled=True, format="¥ %.2f"),
+                "本期应付": st.column_config.NumberColumn("本期应付(背靠背)", disabled=True, format="¥ %.2f"), # 🟢 增加这行列配置！
             },
             width="stretch", hide_index=True, height=500
         )
@@ -319,17 +335,24 @@ else:
                     if "收票" in action_type:
                         sql = "INSERT INTO biz_sub_invoices (biz_code, sub_contract_code, invoice_amount, invoice_date, invoice_number, invoice_type, operator, remarks) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
                         vals = (f"SINV-{datetime.now().strftime('%Y%m%d%H%M%S')}", selected_biz_code, amount, action_date, invoice_num, invoice_type, current_user, custom_remarks)
+                        success, msg = execute_raw_sql(sql, vals)
                     else:
-                        sql = "INSERT INTO biz_outbound_payments (biz_code, sub_contract_code, payment_amount, payment_date, payment_method, operator, remarks) VALUES (%s, %s, %s, %s, %s, %s, %s)"
-                        vals = (f"PAY-{datetime.now().strftime('%Y%m%d%H%M%S')}", selected_biz_code, amount, action_date, pay_method, current_user, custom_remarks)
+                        # 🟢 终极修正：不再直接裸写 SQL，而是调用后端的资金防线！
+                        date_str = action_date.strftime('%Y-%m-%d')
+                        success, msg = crud.submit_sub_payment(
+                            sub_biz_code=selected_biz_code,
+                            payment_amount=amount,
+                            operator=current_user,
+                            payment_date=date_str,
+                            remarks=custom_remarks
+                        )
                     
-                    success, msg = execute_raw_sql(sql, vals)
-                    if success:
-                        db.sync_sub_contract_finance(selected_biz_code) # 🟢 触发底层的互算引擎
+                    if success:                        
                         ui.show_toast_success(f"成功录入 {amount:,.2f} 元！")
                         trigger_refresh()
+                        st.rerun() # 🟢 加上 rerun 强制刷新页面，让“本期应付”瞬间变化
                     else:
-                        st.error(f"录入失败: {msg}")
+                        st.error(f"🚨 操作拦截: {msg}") # 如果超付，这里就会弹出红字警告！
 
         # ================= Tab 2: 财务历史 =================
         with tab_history:
