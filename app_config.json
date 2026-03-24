@@ -3,6 +3,7 @@
         "main_contract": {
             "table_name": "biz_main_contracts",
             "model_label": "主合同台账",
+            "prefix": "MAIN",
             "field_meta": {
                 "project_name": {
                     "label": "项目名称",
@@ -294,6 +295,7 @@
         "sub_contract": {
             "table_name": "biz_sub_contracts",
             "model_label": "分包合同台账",
+            "prefix": "SUB",
             "field_meta": {
                 "book_main_code": {
                     "label": "EBM编号(账面归属)",
@@ -522,6 +524,7 @@
         "enterprise": {
             "table_name": "biz_enterprises",
             "model_label": "往来单位资信库",
+            "prefix": "ENT",
             "field_meta": {
                 "biz_code": {
                     "label": "单位编号",

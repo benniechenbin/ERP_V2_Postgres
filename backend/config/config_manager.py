@@ -106,7 +106,7 @@ def refresh_config():
 # 5. 工具接口 (升级为支持多模型)
 # ========================================================
 def get_standard_options(model_name="project"):
-    options = ["(新建中文物理列)"]
+    options = []
     for k, meta in get_field_meta(model_name).items():
         options.append(f"{k} | {meta['label']}")
     return options

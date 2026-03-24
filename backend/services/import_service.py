@@ -1,5 +1,6 @@
 import pandas as pd
 import warnings
+import json
 from backend.services import excel_service
 from backend.utils import formatters
 from backend.database import db_engine, schema, crud
@@ -41,27 +42,36 @@ def run_import_process(
         try:
             conn = db_engine.get_connection()
             cursor = conn.cursor()
-            cursor.execute(f'UPDATE "{table_name}" SET deleted_at = CURRENT_TIMESTAMP WHERE source_file = %s AND sheet_name = %s', 
-                           (file_name, target_sheet_name))
+            cursor.execute(
+                f"DELETE FROM \"{table_name}\" WHERE extra_props->>'source_file' = %s AND extra_props->>'sheet_name' = %s", 
+                (file_name, target_sheet_name)
+            )
             conn.commit()
-        except Exception:
+        except Exception as e:
+            sys_logger.error(f"覆盖导入清理旧数据失败: {e}")
             if conn: conn.rollback()
         finally:
             if conn: conn.close()
             
-    # B. 逐行处理
+    # B. 逐行处理 (import_service.py)
     for idx, row in df.iterrows():
         row_data = {} 
-        row_errors = [] # 🟢 修正2：补齐缺少的初始化
-       
-        # 🟢 修正3：彻底删除旧猜测逻辑，完全信任前端映射字典
+        row_errors = [] 
+        
+        # 🟢 只遍历前端传过来的映射字典，完美实现“没勾选的直接抛弃”！
         if manual_mapping:
             for excel_col, target_key in manual_mapping.items():
                 cell_val = row.get(excel_col)
                 if pd.isna(cell_val) or str(cell_val).strip() == "": 
                     continue
                 
-                final_key = excel_col if target_key == "NEW_PHYSICAL" else target_key
+                # 场景 1：明确指定存入 JSONB
+                if target_key == "INTO_JSONB":
+                    row_data[excel_col] = str(cell_val).strip()
+                    continue
+                    
+                # 场景 2 & 3：物理列或新建列
+                final_key = target_key
                 
                 # 智能清洗转换
                 if any(k in final_key for k in ["amount", "collection", "额", "价"]):
@@ -69,7 +79,7 @@ def run_import_process(
                 elif any(k in final_key for k in ["date", "日期", "时间"]):
                     row_data[final_key] = formatters.parse_date_cell(cell_val)
                 else:
-                    row_data[final_key] = str(cell_val).strip()
+                    row_data[final_key] = str(cell_val).strip() 
 
         # --- C. 附属表严苛拦截 ---
         if relation_config:
@@ -87,8 +97,10 @@ def run_import_process(
                     row_errors.append(f"在主表 [{prime_table}] 中找不到合同编号 [{fk_val_str}]")
 
         # --- D. 自动生成业务编号 ---
-        if not row_data.get('biz_code') and model_name == 'project': 
-            row_data['biz_code'] = crud.generate_biz_code(table_name)
+        if not row_data.get('biz_code'):
+            # 🟢 彻底告别写死！直接从配置文件读取 prefix，如果没有配置，默认兜底用 "PRJ"
+            prefix = model_config.get("prefix", "PRJ")
+            row_data['biz_code'] = crud.generate_biz_code(table_name, prefix_char=prefix)
             
         if row_errors:
             errors.append(f"第 {idx+2} 行被拦截: " + "；".join(row_errors))
@@ -98,9 +110,13 @@ def run_import_process(
         row_data['source_file'] = file_name
         row_data['sheet_name'] = target_sheet_name
 
+        # 直接入库，底层 crud 会完美接管所有不认识的字段！
         res, msg = crud.upsert_dynamic_record(model_name=model_name, data_dict=row_data)
-        if res: total_inserted += 1
-        else: errors.append(f"第{idx+2}行失败: {msg}")
+        
+        if res: 
+            total_inserted += 1
+        else: 
+            errors.append(f"第{idx+2}行失败: {msg}")
 
     # ==========================================
     # 🟢 终极闭环：写入宏观任务日志 (sys_job_logs)

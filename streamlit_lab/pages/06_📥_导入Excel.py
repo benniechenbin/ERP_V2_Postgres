@@ -111,9 +111,8 @@ if uploaded_file:
             st.markdown("##### 2. 确认目标字段 (已为您自动匹配，如有误请手动修改)")
             
             standard_opts = cfg.get_standard_options(model_name)
-            NEW_COL_OPT = "(新建中文物理列)" 
             IGNORE_OPT = "📦 [附加属性] 存入 JSONB"
-            all_opts = [NEW_COL_OPT] + standard_opts + [IGNORE_OPT]
+            all_opts = standard_opts + [IGNORE_OPT]
             
             ui_cols = st.columns(3)
             for i, col_original in enumerate(chosen_cols):
@@ -142,9 +141,11 @@ if uploaded_file:
                         key=f"map_{col_original}"
                     )
                     
-                    if selected_opt == NEW_COL_OPT:
-                        user_final_mapping[col_original] = "NEW_PHYSICAL" 
-                    elif selected_opt != IGNORE_OPT:
+                    
+                    if selected_opt == IGNORE_OPT:
+                        # 🟢 明确告诉后端：这列我要放进 JSONB！
+                        user_final_mapping[col_original] = "INTO_JSONB" 
+                    else:
                         user_final_mapping[col_original] = selected_opt.split(" |")[0].strip()
                         
     # ==========================================
