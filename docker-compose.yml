@@ -1,5 +1,9 @@
+version: '3.8'
+
 services:
-  # 1. 数据库容器
+  # ==========================================
+  # 1. 🗄️ 数据库容器 (PostgreSQL)
+  # ==========================================
   db:
     image: postgres:15-alpine
     container_name: erp_postgres_v2
@@ -10,29 +14,44 @@ services:
       POSTGRES_DB: erp_core_db
       TZ: Asia/Shanghai
     ports:
-      - "5435:5432"  # 🟢 如果依然报 5432 占用，请改成 "5435:5432"
+      - "5435:5432"  # 宿主机 5435 映射到容器内 5432，避免与本地已安装的 PG 冲突
     volumes:
-    - pgdata:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data # 持久化数据库数据，防止容器重启后数据丢失
 
-
-  # 2. ERP 应用容器
+  # ==========================================
+  # 2. 🚀 ERP 应用容器 (Streamlit/FastAPI)
+  # ==========================================
   web:
     build: .
+    container_name: erp_web_v2
+    restart: always
     depends_on:
       - db
     environment:
+      # 告诉后端去哪里找数据库 (注意 DB_HOST 填的是上面的服务名 'db')
       - DB_HOST=db
       - DB_PORT=5432
       - DB_USER=erp_admin
       - DB_PASS=admin
       - DB_NAME=erp_core_db
-      - TZ=Asia/Shanghai            # 修正时区
-      - PYTHONUNBUFFERED=1     
+      - TZ=Asia/Shanghai            # 强制容器使用北京时间
+      - PYTHONUNBUFFERED=1          # 确保 Python 日志能实时输出到终端控制台
     ports:
       - "8501:8501"
+    # 🟢 凌空注入：读取宿主机上的 .env 文件并将其作为环境变量注入容器
+    env_file: 
+      - .env  
     volumes:
+      # 挂载 1：业务附件（合同扫描件等），确保客户上传的文件存在宿主机的 host_data 里
       - ./host_data/uploads:/app/data/uploads 
+      # 挂载 2：本地大模型（核心修复）
+      - ./backend/models:/app/backend/models
+      # 挂载 3：实验页面（Streamlit 实验结果）
+      - ./host_data/experiments:/app/streamlit_lab/experiments
 
-# 🟢 关键修复：在这里声明上面用到的持久化卷
+# ==========================================
+# 3. 💾 全局数据卷声明
+# ==========================================
 volumes:
   pgdata:
+    name: erp_pgdata_v2 # 给卷起个明确的名字，方便以后管理
