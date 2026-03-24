@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import config_manager as cfg
+import backend.config.config_manager as cfg
 
 # ==============================================================================
 # 🟢 区域一：待迁移的核心逻辑 (Future Core Logic)
