@@ -31,12 +31,12 @@ def run(df, conn):
     conn: 宿主传来的数据库连接
     """
     FORM_HIDDEN_FIELDS = [] 
-    FORM_READONLY_FIELDS = []
+ 
 
     # ==========================================
     # 0. 页面配置与初始化
     # ==========================================
-    st.set_page_config(page_title="主合同管理", page_icon="🛠️", layout="wide")
+    # st.set_page_config(page_title="主合同管理", page_icon="🛠️", layout="wide")
 
     if 'show_main_contract_dialog' not in st.session_state:
         st.session_state.show_main_contract_dialog = False

@@ -75,16 +75,23 @@ def render_smart_widget(col_name, label, val, col_type, config_type, is_disabled
         if max_val is not None:
             default_num = min(default_num, float(max_val))
             
-        raw_input = st.number_input(
-            label, 
-            value=default_num, 
-            min_value=float(min_val) if min_val is not None else None,
-            max_value=float(max_val) if max_val is not None else None,
-            disabled=is_disabled,
-            step=float(step_val),
-            format=display_format,
-            key=f"input_{col_name}"
-        )
+        widget_key = f"input_{col_name}"
+
+        # 🟢 动态构造参数：如果 session_state 里已经有这个值(比如 AI 提取的)，绝不要再传 value 参数！
+        kwargs = {
+            "min_value": float(min_val) if min_val is not None else None,
+            "max_value": float(max_val) if max_val is not None else None,
+            "disabled": is_disabled,
+            "step": float(step_val),
+            "format": display_format,
+            "key": widget_key
+        }
+
+        # 只有在内存里没有这个值的时候，才把它兜底设为 0.0
+        if widget_key not in st.session_state:
+            kwargs["value"] = default_num
+            
+        raw_input = st.number_input(label, **kwargs)
         
         return raw_input / 100.0 if config_type == "percent" else raw_input
             
@@ -170,7 +177,7 @@ def render_dynamic_form(model_name: str, form_title: str, existing_data: dict = 
             is_readonly = meta.get("readonly", False) or (field_key in readonly_fields)
             
             config_type = meta.get("type", "text")
-            pseudo_col_type = "DECIMAL" if config_type in ["money", "percent", "number"] else "VARCHAR"
+            pseudo_col_type = "DECIMAL" if config_type in ["money", "percent", "number", "num"] else "VARCHAR"
             
             with cols[idx % 3]:
                 user_input = render_smart_widget(

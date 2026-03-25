@@ -24,7 +24,6 @@ import components as ui
 
 # 隐藏/只读字段配置
 FORM_HIDDEN_FIELDS = [] 
-FORM_READONLY_FIELDS = ['total_paid', 'total_invoiced_from_sub', 'unpaid_amount']
 
 # ==========================================
 # 0. 页面配置与初始化
@@ -177,8 +176,7 @@ def sub_contract_form_dialog(existing_data=None):
                 
                 # 🚨 破案关键：判断该字段是否会在底层被“降级”为 text_input 渲染
                 is_forced_text = (
-                    f_type in ["text", "select"] or 
-                    k in FORM_READONLY_FIELDS or 
+                    f_type in ["text", "select"] or                   
                     field_meta.get(k, {}).get("readonly") or 
                     field_meta.get(k, {}).get("is_virtual")
                 )
@@ -204,7 +202,6 @@ def sub_contract_form_dialog(existing_data=None):
             form_title, 
             current_data, 
             hidden_fields=FORM_HIDDEN_FIELDS,
-            readonly_fields=FORM_READONLY_FIELDS,
             dynamic_options=my_options,
             format_funcs=my_formatters
         )

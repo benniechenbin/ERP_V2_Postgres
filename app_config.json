@@ -84,7 +84,6 @@
                     "label": "计划开票时间",
                     "type": "date",
                     "ai_ignore": true
-
                 },
                 "responsible_person": {
                     "label": "责任人",
@@ -330,7 +329,7 @@
                 "sign_date": {
                     "label": "签约日期",
                     "type": "date",
-                    "ai_ignore": true                    
+                    "ai_ignore": true
                 },
                 "sub_amount": {
                     "label": "分包合同金额(元)",

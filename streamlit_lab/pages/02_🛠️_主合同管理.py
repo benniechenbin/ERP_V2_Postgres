@@ -25,7 +25,6 @@ import debug_kit
 import components as ui
 
 FORM_HIDDEN_FIELDS = [] 
-FORM_READONLY_FIELDS = []
 
 # ==========================================
 # 0. 页面配置与初始化
@@ -270,14 +269,21 @@ def contract_form_dialog(existing_data=None):
     field_meta = cfg.get_field_meta("sub_contract")
     for k, v in list(current_data.items()):
         if pd.isna(v): 
-            # 把 Pandas 恶心的 NaN (float) 替换为 None，Streamlit 才不会报错
             current_data[k] = None  
         else:
             f_type = field_meta.get(k, {}).get("type", "text")
-            # 如果配置规定这个框是文本框或下拉框，但传进来的却不是字符串，强制转换！
-            if f_type in ["text", "select"] and not isinstance(v, str):
+            
+            # 🚨 破案关键：判断该字段是否会在底层被“降级”为 text_input 渲染
+            is_forced_text = (
+                f_type in ["text", "select"] or 
+                field_meta.get(k, {}).get("readonly") or 
+                field_meta.get(k, {}).get("is_virtual")
+            )
+            
+            # 如果它注定要进 text_input，且它现在不是字符串，强制转换！
+            if is_forced_text and not isinstance(v, str):
                 current_data[k] = str(v)
-    # ========================================================= 
+    # =========================================================
         
     # 3. 渲染出高级表单
     result = ui.render_dynamic_form(
@@ -285,7 +291,6 @@ def contract_form_dialog(existing_data=None):
         form_title, 
         current_data, 
         hidden_fields=FORM_HIDDEN_FIELDS,
-        readonly_fields=FORM_READONLY_FIELDS
     )
     
     # 4. 保存逻辑

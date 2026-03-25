@@ -39,15 +39,13 @@ def render_enterprise_form(mode="edit", initial_data=None, model_name="enterpris
 
     # 2. 🟢 统一常量控制网关：定义隐藏和只读字段
     FORM_HIDDEN_FIELDS = ['id', 'deleted_at', 'source_file', 'sheet_name', 'extra_props', 'created_at', 'updated_at']
-    FORM_READONLY_FIELDS = ['biz_code'] if mode == "edit" else []
 
     # 3. 🟢 直接呼叫偷懒神器画表单！
     result = ui.render_dynamic_form(
         model_name=model_name,
         form_title=form_title,
         existing_data=current_data,
-        hidden_fields=FORM_HIDDEN_FIELDS,
-        readonly_fields=FORM_READONLY_FIELDS
+        hidden_fields=FORM_HIDDEN_FIELDS
     )
     
     # 4. 接管保存逻辑

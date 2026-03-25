@@ -78,7 +78,18 @@ def execute_debug_logic(current_db_path=None):
                 else:
                     st.error("❌ 文件写入失败。")
             except json.JSONDecodeError as je:
-                st.error(f"❌ JSON 格式严重错误，请检查标点符号或括号匹配：{je}")
+                error_line = je.lineno - 1
+                error_col = je.colno
+                
+                # 按行切割用户输入的文本，揪出报错的那一行
+                lines = models_input.split('\n')
+                faulty_line_content = lines[error_line - 1] if 0 < error_line <= len(lines) else "未知行"
+                
+                st.error(f"❌ **JSON 格式解析失败！** 错误精准定位在：第 **{error_line}** 行，第 **{error_col}** 列。")
+                st.warning(f"🔧 **底层报错信息**: {je.msg}")
+                
+                # 把出错的那行代码单独高亮打印出来，一眼就能看出哪里漏了逗号或引号
+                st.code(f"第 {error_line} 行长这样 👇\n\n{faulty_line_content}", language="json")
 
     # =========================================================
     # Tab 2: SQL 终端 (修复版)
