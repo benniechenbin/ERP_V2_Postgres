@@ -48,7 +48,18 @@ def trigger_refresh():
 @st.cache_data(ttl=5, show_spinner=False)
 def load_main_contracts(trigger):
     return db.fetch_dynamic_records('main_contract')
+@st.cache_data(ttl=5, show_spinner=False)
+def load_main_contracts(trigger):
+    return db.fetch_dynamic_records('main_contract')
 
+# 🟢 新增：拉取往来单位库的公司名称
+@st.cache_data(ttl=5, show_spinner=False)
+def load_enterprise_names(trigger):
+    df_ent = db.fetch_dynamic_records('enterprise')
+    if df_ent.empty:
+        return [""]
+    # 提取 company_name 列并去重，最前面加一个空选项
+    return [""] + df_ent['company_name'].dropna().unique().tolist()
 # ==========================================
 # 1.5 收款计划表 (子表) 读写引擎
 # ==========================================
@@ -285,12 +296,18 @@ def contract_form_dialog(existing_data=None):
                 current_data[k] = str(v)
     # =========================================================
         
+    ent_names = load_enterprise_names(st.session_state.refresh_trigger)
+    my_options = {
+        "client_name": ent_names  # 将甲方单位字段变为下拉框
+    }
+    
     # 3. 渲染出高级表单
     result = ui.render_dynamic_form(
         "main_contract", 
         form_title, 
         current_data, 
         hidden_fields=FORM_HIDDEN_FIELDS,
+        dynamic_options=my_options  # 👈 魔法注入：让 client_name 变成可搜索下拉框
     )
     
     # 4. 保存逻辑

@@ -124,49 +124,29 @@ if df_all.empty:
     st.error(f"⚠️ 无法加载数据: {msg}")
     st.stop()
 
-# --- 年份选择 ---
-valid_years = sorted(df_all[df_all['sign_year'] > 1900]['sign_year'].unique().tolist(), reverse=True)
-if not valid_years:
-    st.warning("数据中无有效年份，请检查日期列。")
-    st.stop()
-
 current_year = datetime.now().year
-default_idx = valid_years.index(current_year) if current_year in valid_years else 0
 
-available_tables = df_all['origin_table'].unique().tolist()
-# 在最前面加上“全库”选项
-scope_options = ["🌍 总览 "] + available_tables
-
-# 调整顶部布局，分出两个选择框
-c_year, c_scope, _ = st.columns([1, 1.5, 2])
-with c_year:
-    analysis_year = st.selectbox("📅 选择分析年份", valid_years, index=default_idx)
-with c_scope:
-    analysis_scope = st.selectbox(
-        "🏢 选择分析范围", 
-        scope_options, 
-        index=0,
-        format_func=ui.remove_prefix_formatter("data_")
-    )
+st.markdown("##### ⏳ 分析周期设定")
+with st.container(border=True):
+    c_start, c_end, _ = st.columns([1, 1, 2])
+    with c_start:
+        start_date = st.date_input("📅 起始时间", value=datetime(current_year, 1, 1).date())
+    with c_end:
+        end_date = st.date_input("📅 截止时间", value=datetime.now().date())
 
 st.divider()
 
 # =========================================================
-# 🟢 新增：全局数据切片 (核心过滤逻辑)
+# 🟢 全局数据切片 (基于真实时间轴过滤)
 # =========================================================
-# 如果用户选了特定的表，就把 df_all 砍掉一部分，只留下选中的表的数据
-if analysis_scope != "🌍 总览 ":
-    df_all = df_all[df_all['origin_table'] == analysis_scope]
-
-st.divider()
-
-# --- 数据切片 ---
-# 1. 本年新签
-mask_new = (df_all['sign_year'] == analysis_year)
+start_ts = pd.to_datetime(start_date)
+end_ts = pd.to_datetime(end_date)
+# 1. 本期新签 (签约时间在选定时间段内的)
+mask_new = (df_all['dt_sign'] >= start_ts) & (df_all['dt_sign'] <= end_ts)
 df_new = df_all[mask_new].copy()
 
-# 2. 往年结转 (以前签的 + 有合同额的)
-mask_carry = (df_all['sign_year'] < analysis_year) & (df_all['val_contract'] > 10)
+# 2. 往期结转
+mask_carry = (df_all['dt_sign'] < start_ts) & (df_all['val_contract'] > 10)
 df_carry = df_all[mask_carry].copy()
 
 # 指标计算
@@ -174,6 +154,9 @@ new_contract_sum = df_new['val_contract'].sum()
 new_collection_sum = df_new['val_collection'].sum()
 carry_debt_sum = df_carry['val_uncollected'].sum()
 total_debt = df_new['val_uncollected'].sum() + carry_debt_sum
+
+# 为了不修改下方的代码，我们动态伪装一个 analysis_year 变量给下面用
+analysis_year = f"{start_date.strftime('%Y-%m')} 至 {end_date.strftime('%Y-%m')}"
 
 # --- 宏观看板 ---
 k1, k2, k3, k4 = st.columns(4)
@@ -281,12 +264,16 @@ with tab2:
 
 # --- AI 简报 ---
 st.markdown("---")
-c_ai_title, c_ai_action = st.columns([2, 1])
-with c_ai_title:
-    st.subheader("🤖 AI 经营诊断报告")
-    st.caption("生成 CEO 视角的决策建议。")
-with c_ai_action:
-    if st.button("✨ 生成简报 (演示)", type="primary", width="stretch"):
-        st.success("AI 接口已就绪，等待接入...")
+st.subheader("📑 智能管理层报告 (CFO 视角)")
+st.caption("基于上述宏观图表（新签、结转、坏账比例），自动生成结构化的年度经营诊断与风控警示。")
+
+# 采用卡片式的 UI 包装，显得更正式
+with st.container(border=True):
+    st.markdown("报告将包含以下维度：\n* 资金盘面健康度综合评估\n* 历史遗留坏账的系统性成因推测\n* 下一季度核心 KPI 优化建议")
+    
+    if st.button("✨ 一键生成经营诊断书", type="primary"):
+        # 🟢 预留给二期工程的解耦占位提示
+        st.info("💡 架构解耦准备中：此处宏观数据的整合逻辑及 CFO 提示词，将在二期工程中抽离至独立的 `prompts.py` 模块。")
+        # 实际功能暂时悬空
 
 debug_kit.execute_debug_logic()

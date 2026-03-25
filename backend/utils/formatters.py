@@ -105,7 +105,6 @@ def normalize_db_value(value):
     [数据库安检门] 将各类复杂的 Numpy / Pandas / Decimal 类型
     强制收敛为 PostgreSQL 原生认识的 Python 基础类型。
     """
-    import pandas as pd # 确保文件顶部有 import pandas as pd
     
     # 1. 拦截各种空值 (NaN, NaT, None) -> 转为数据库的原生 NULL
     if pd.isna(value) or value is None:

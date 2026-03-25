@@ -170,13 +170,12 @@ if not df_urgent.empty:
 # =========================================================
 st.markdown("---")
 
-c_search, c_stage, c_manager = st.columns([2, 1, 1])
+c_search, c_stage, c_manager = st.columns(3)
 
 with c_search:
     search_kw = st.text_input("🔍 搜索项目名称/编号...", placeholder="例如：上海大厦...")
 
 with c_stage:
-    # 提取存在的状态
     stages = ["全部"] + [s for s in df_main['project_stage'].unique().tolist() if str(s) != 'nan']
     sel_stage = st.selectbox("📌 项目阶段", stages)
 
@@ -198,9 +197,12 @@ if sel_stage != "全部":
 if sel_manager != "全部":
     df_view = df_view[df_view['manager'] == sel_manager]
 
-with col_ai:
-    st.write("") # 占位
-    if st.button("✨ 唤醒 AI 诊断", type="primary", width="stretch", disabled=df_view.empty):
+c_info, c_ai_tool = st.columns([5, 1])
+with c_info:
+    st.caption(f"为您检索到 **{len(df_view)}** 个项目记录。")
+with c_ai_tool:
+    # 变成一个次级按钮，融入操作流
+    if st.button("💡 催款策略助手", help="对当前表格中的项目进行还款风险评估", disabled=df_view.empty, use_container_width=True):
         show_ai_search_dialog(search_kw or "当前全盘", df_view)
 
 # =========================================================

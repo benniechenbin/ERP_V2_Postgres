@@ -55,7 +55,12 @@ def load_main_contracts_dict(trigger):
         return {}
     # 返回形如 {"MAIN-001": "万科项目", "MAIN-002": "海尔项目"} 的字典
     return pd.Series(df_main['project_name'].values, index=df_main['biz_code']).to_dict()
-
+@st.cache_data(ttl=5, show_spinner=False)
+def load_enterprise_names(trigger):
+    df_ent = db.fetch_dynamic_records('enterprise')
+    if df_ent.empty:
+        return [""]
+    return [""] + df_ent['company_name'].dropna().unique().tolist()
 def load_sub_financial_history(sub_contract_code, table_type="payments"):
     """拉取分包侧的 纯付款 / 纯收票 历史"""
     conn = get_connection()
@@ -186,6 +191,9 @@ def sub_contract_form_dialog(existing_data=None):
                     current_data[k] = str(v)
         # =========================================================   
         # 🟢 终极魔法：构造下拉选项和格式化函数
+        ent_names = load_enterprise_names(st.session_state.refresh_trigger)
+
+        # 🟢 终极魔法：构造下拉选项和格式化函数
         all_main_codes = [""] + list(main_dict.keys())
         my_formatters = {
             "book_main_code": lambda code: f"[{code}] {main_dict.get(code, '未知项目')}" if code else "未关联",
@@ -193,7 +201,8 @@ def sub_contract_form_dialog(existing_data=None):
         }
         my_options = {
             "book_main_code": all_main_codes,
-            "actual_main_code": all_main_codes
+            "actual_main_code": all_main_codes,
+            "sub_company_name": ent_names  # 👈 核心修改：增加分包单位的下拉控制
         }
             
         # 渲染表单并注入魔法

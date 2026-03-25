@@ -534,8 +534,7 @@
             "field_meta": {
                 "biz_code": {
                     "label": "单位编号",
-                    "type": "text",
-                    "readonly": true
+                    "type": "text"
                 },
                 "company_name": {
                     "label": "单位全称",
