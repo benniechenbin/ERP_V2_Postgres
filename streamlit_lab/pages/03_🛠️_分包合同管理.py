@@ -16,6 +16,7 @@ from backend.database import crud
 from backend.database.db_engine import execute_raw_sql, get_connection
 from backend.config import config_manager as cfg
 import backend.database as db
+from backend.services.ai_service import extract_contract_elements
 
 import sidebar_manager
 import debug_kit 
@@ -30,6 +31,10 @@ FORM_READONLY_FIELDS = ['total_paid', 'total_invoiced_from_sub', 'unpaid_amount'
 # ==========================================
 st.set_page_config(page_title="分包合同管理 (支出侧)", page_icon="🛡️", layout="wide")
 
+if 'show_sub_contract_dialog' not in st.session_state:
+    st.session_state.show_sub_contract_dialog = False
+if 'current_sub_edit_data' not in st.session_state:
+    st.session_state.current_sub_edit_data = None
 if 'refresh_trigger' not in st.session_state:
     st.session_state.refresh_trigger = 0
 
@@ -101,36 +106,87 @@ sidebar_manager.render_sidebar()
 # ==========================================
 @st.dialog("🛡️ 分包合同登记", width="large")
 def sub_contract_form_dialog(existing_data=None):
+    # 🟢 状态初始化：用于存放分包 AI 提取出的数据
+    if "ai_sub_buffer" not in st.session_state:
+        st.session_state.ai_sub_buffer = {}
+
     if ui and hasattr(ui, 'render_dynamic_form'):
         
-        # 🟢 AI 占位符 (极简重构布局)
+        # 🟢 AI 占位符 (已打通真接口)
         st.subheader("🤖 AI 分包合同智能解析")
-        uploaded_files = st.file_uploader("📂 请拖拽或选择待解析合同 (支持 PDF/Word)", accept_multiple_files=True)
+        uploaded_files = st.file_uploader("📂 请拖拽或选择待解析合同 (支持 PDF/Word)", accept_multiple_files=True, key="sub_uploader")
         c_cat, c_btn = st.columns([3, 1])
         with c_cat:
             file_category = st.selectbox(
                 "🗂️ 附件类别", 
                 ["分包合同正文 (需 AI 解析)", "工程量清单", "结算单", "其他附件"],
-                label_visibility="collapsed" 
+                label_visibility="collapsed",
+                key="sub_category"
             )
         with c_btn:
             ai_ready = uploaded_files is not None and len(uploaded_files) > 0 and "(需 AI 解析)" in file_category
-            if st.button("✨ 一键 AI 提取", type="primary", disabled=not ai_ready, use_container_width=True):
-                with st.spinner("🧠 AI 正在极速提取中..."):
-                    import time; time.sleep(1)
-                    st.success("🎉 AI 提取完毕！下方表单已更新。")
+            if st.button("✨ 一键 AI 提取", type="primary", disabled=not ai_ready, use_container_width=True, key="sub_ai_btn"):
+                with st.spinner("🧠 AI 正在极速阅读分包条款，请稍候..."):
+                    # 🟢 呼叫通用 AI 接口
+                    ai_results = extract_contract_elements(uploaded_files[0], "sub_contract")
+                    
+                    if ai_results:
+                        field_meta = cfg.get_field_meta("sub_contract")
+                        for k, v in ai_results.items():
+                            if v is None or str(v).strip().lower() in ["", "null", "none"]: continue
+                            
+                            state_key = f"input_{k}"
+                            f_type = field_meta.get(k, {}).get("type", "text")
+                            try:
+                                if f_type == "date":
+                                    st.session_state[state_key] = datetime.strptime(str(v)[:10], "%Y-%m-%d").date()
+                                elif f_type in ["money", "number", "num", "percent"]:
+                                    st.session_state[state_key] = float(v)
+                                else:
+                                    st.session_state[state_key] = str(v)
+                            except Exception:
+                                pass
+                                
+                        st.session_state.ai_sub_buffer = ai_results
+                        st.success("🎉 AI 提取完毕！下方表单已自动填充。")
+                        st.rerun()
+                    else:
+                        st.error("❌ 识别失败，未能提取出有效数据。")
+
         st.markdown("---") 
 
         is_edit = existing_data is not None
         form_title = "✏️ 修改分包合同" if is_edit else "🆕 录入新分包合同"
-        
+        current_data = existing_data.copy() if existing_data else {}
         if not is_edit:
             target_table = cfg.get_model_config("sub_contract").get("table_name", "biz_sub_contracts")
-            new_biz_code = crud.generate_biz_code(target_table, prefix_char="SUB")
-            current_data = {'biz_code': new_biz_code}
-        else:
-            current_data = existing_data
+            current_data['biz_code'] = crud.generate_biz_code(target_table, prefix_char="SUB")
             
+        # 融合 AI 提取的数据
+        if st.session_state.get("ai_sub_buffer"):
+            current_data.update(st.session_state.ai_sub_buffer)
+        # =========================================================
+        # 🛡️ 数据清洗防弹衣 2.0（终极进化版）
+        # =========================================================
+        field_meta = cfg.get_field_meta("sub_contract")
+        for k, v in list(current_data.items()):
+            if pd.isna(v): 
+                current_data[k] = None  
+            else:
+                f_type = field_meta.get(k, {}).get("type", "text")
+                
+                # 🚨 破案关键：判断该字段是否会在底层被“降级”为 text_input 渲染
+                is_forced_text = (
+                    f_type in ["text", "select"] or 
+                    k in FORM_READONLY_FIELDS or 
+                    field_meta.get(k, {}).get("readonly") or 
+                    field_meta.get(k, {}).get("is_virtual")
+                )
+                
+                # 如果它注定要进 text_input，且它现在不是字符串，强制转换！
+                if is_forced_text and not isinstance(v, str):
+                    current_data[k] = str(v)
+        # =========================================================   
         # 🟢 终极魔法：构造下拉选项和格式化函数
         all_main_codes = [""] + list(main_dict.keys())
         my_formatters = {
@@ -182,12 +238,16 @@ def sub_contract_form_dialog(existing_data=None):
             )
             
             if success:
+                
                 # 调用解耦后的附件大管家
                 if uploaded_files:
                     from backend.services.file_service import save_attachment
                     target_table = cfg.get_model_config("sub_contract").get("table_name", "biz_sub_contracts")
                     for uf in uploaded_files:
                         save_attachment(final_biz_code, uf, target_table, file_category=file_category)
+                st.session_state.ai_sub_buffer = {} 
+                st.session_state.show_sub_contract_dialog = False  
+                
                 ui.show_toast_success("分包数据保存成功！")
                 trigger_refresh() 
                 st.rerun()
@@ -197,13 +257,17 @@ def sub_contract_form_dialog(existing_data=None):
 # ==========================================
 # 3. 📊 顶层：防失血 KPI 预警看板
 # ==========================================
+if st.session_state.show_sub_contract_dialog:
+    sub_contract_form_dialog(st.session_state.current_sub_edit_data)
 col_title, col_add_btn = st.columns([8, 2])
 with col_title:
     st.title("🛡️ 分包支出与税务防线")
 with col_add_btn:
     st.write("") 
     if st.button("➕ 录入新分包合同", type="primary", use_container_width=True):
-        sub_contract_form_dialog() 
+        st.session_state.show_sub_contract_dialog = True
+        st.session_state.current_sub_edit_data = None
+        st.rerun()
 
 if ui and hasattr(ui, 'style_metric_card'):
     ui.style_metric_card()
@@ -307,7 +371,9 @@ else:
         with col_edit:
             if st.button("✏️ 修改", use_container_width=True):
                 current_contract_data = df_sub[df_sub['biz_code'] == selected_biz_code].iloc[0].to_dict()
-                sub_contract_form_dialog(existing_data=current_contract_data)
+                st.session_state.show_sub_contract_dialog = True
+                st.session_state.current_sub_edit_data = current_contract_data
+                st.rerun()
 
         # 🟢 减法 Tab：去掉了收款计划，只保留流水、历史、审计
         tab_flow, tab_history, tab_audit = st.tabs(["⚡ 录入流出", "📜 财务明细", "🛡️ 审计"])

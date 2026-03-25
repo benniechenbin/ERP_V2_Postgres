@@ -16,7 +16,7 @@ from .analysis_service import get_cash_flow_trend
 from .excel_service import clean_excel,smart_classify_header
 from .ai_service import (
     extract_text_from_upload,
-    get_main_contract_elements
+    extract_contract_elements
 )
 
 __all__ = [
@@ -31,6 +31,6 @@ __all__ = [
     "clean_excel",
     "smart_classify_header",
     "extract_text_from_upload",
-    "get_main_contract_elements",
+    "extract_contract_elements",
     "save_attachment"
 ]

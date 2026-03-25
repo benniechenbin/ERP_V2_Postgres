@@ -51,7 +51,8 @@
                 },
                 "project_stage": {
                     "label": "项目阶段",
-                    "type": "text"
+                    "type": "text",
+                    "ai_ignore": true
                 },
                 "contract_amount": {
                     "label": "合同金额",
@@ -71,15 +72,19 @@
                 },
                 "est_sign_date": {
                     "label": "预计签约时间",
-                    "type": "date"
+                    "type": "date",
+                    "ai_ignore": true
                 },
                 "est_invoice_this_year": {
                     "label": "当年预计开票金额",
-                    "type": "num"
+                    "type": "num",
+                    "ai_ignore": true
                 },
                 "plan_invoice_date": {
                     "label": "计划开票时间",
-                    "type": "date"
+                    "type": "date",
+                    "ai_ignore": true
+
                 },
                 "responsible_person": {
                     "label": "责任人",
@@ -87,7 +92,8 @@
                 },
                 "recognized_revenue": {
                     "label": "确认收入",
-                    "type": "num"
+                    "type": "num",
+                    "ai_ignore": true
                 },
                 "operating_revenue": {
                     "label": "营业收入",
@@ -323,7 +329,8 @@
                 },
                 "sign_date": {
                     "label": "签约日期",
-                    "type": "date"
+                    "type": "date",
+                    "ai_ignore": true                    
                 },
                 "sub_amount": {
                     "label": "分包合同金额(元)",

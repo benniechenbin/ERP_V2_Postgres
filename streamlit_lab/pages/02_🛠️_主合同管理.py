@@ -18,7 +18,7 @@ from backend.config import config_manager as cfg
 import backend.database as db
 from backend import services as svc
 # 核心 AI 提取接口
-from backend.services.ai_service import get_main_contract_elements 
+from backend.services.ai_service import extract_contract_elements
 
 import sidebar_manager
 import debug_kit 
@@ -208,7 +208,7 @@ def contract_form_dialog(existing_data=None):
                 
                 # 🟢 呼叫真实的后端 AI 接口
                 # 🟢 呼叫真实的后端 AI 接口
-                ai_results = get_main_contract_elements(uploaded_files[0])
+                ai_results = extract_contract_elements(uploaded_files[0],"main_contract")
                 
                 if ai_results:
                     # 拿到当前表单的字段配置，用来知道哪个框是什么类型
@@ -264,6 +264,20 @@ def contract_form_dialog(existing_data=None):
     # 无论是新增还是修改，只要 AI 提取了，就把它融合进去
     if st.session_state.get("ai_extracted_buffer"):
         current_data.update(st.session_state.ai_extracted_buffer)
+    # =========================================================
+    # 🛡️ 新增：数据清洗防弹衣（消除 Pandas NaN 和 AI 数据错乱引发的崩溃）
+    # =========================================================
+    field_meta = cfg.get_field_meta("sub_contract")
+    for k, v in list(current_data.items()):
+        if pd.isna(v): 
+            # 把 Pandas 恶心的 NaN (float) 替换为 None，Streamlit 才不会报错
+            current_data[k] = None  
+        else:
+            f_type = field_meta.get(k, {}).get("type", "text")
+            # 如果配置规定这个框是文本框或下拉框，但传进来的却不是字符串，强制转换！
+            if f_type in ["text", "select"] and not isinstance(v, str):
+                current_data[k] = str(v)
+    # ========================================================= 
         
     # 3. 渲染出高级表单
     result = ui.render_dynamic_form(
