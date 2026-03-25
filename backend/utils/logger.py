@@ -10,7 +10,12 @@ LOG_DIR = BASE_DIR / "data" / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 LOG_FILE = LOG_DIR / "erp_system.log"
-
+# =========================================================
+# 🛡️ 专治 Windows 终端 GBK 乱码/崩溃问题
+# 强行将标准输出流重置为 UTF-8 编码，让火箭 🚀 顺利升空！
+# =========================================================
+if sys.stdout.encoding.lower() != 'utf-8':
+    sys.stdout.reconfigure(encoding='utf-8')
 def setup_logger():
     """初始化全局日志记录器"""
     # 如果已经配置过，直接返回，防止重复打印

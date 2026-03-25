@@ -87,10 +87,22 @@ def render_smart_widget(col_name, label, val, col_type, config_type, is_disabled
             "key": widget_key
         }
 
-        # 只有在内存里没有这个值的时候，才把它兜底设为 0.0
-        if widget_key not in st.session_state:
-            kwargs["value"] = default_num
+        if widget_key in st.session_state:
+            # 场景 A：内存里有值（AI 填的，或者是之前填过的）-> 强行洗澡去杂质
+            raw_val = st.session_state[widget_key]
+            try:
+                if isinstance(raw_val, str):
+                    clean_str = raw_val.replace(',', '').replace('元', '').replace(' ', '').replace('¥', '')
+                    st.session_state[widget_key] = float(clean_str)
+                else:
+                    st.session_state[widget_key] = float(raw_val)
+            except (ValueError, TypeError):
+                st.session_state[widget_key] = 0.0
+        else:
+            # 场景 B：内存里没值（全新的表单）-> 走你刚才问的那句逻辑，给 kwargs 塞默认值
+            kwargs["value"] = default_num 
             
+        # 🟢 3. 最终渲染
         raw_input = st.number_input(label, **kwargs)
         
         return raw_input / 100.0 if config_type == "percent" else raw_input

@@ -1,13 +1,12 @@
 import json
 import PyPDF2
-
 from docx import Document
-from backend.ai.llm_dispatcher import LLMDispatcher #
+
+from backend.ai.llm_dispatcher import get_ai_dispatcher
 from backend.utils.logger import sys_logger
 from backend.config import config_manager as cfg
 
 # 实例化调度器
-dispatcher = LLMDispatcher()
 
 def extract_text_from_upload(uploaded_file):
     """从上传的文件流中提取文本"""
@@ -72,6 +71,7 @@ def extract_contract_elements(uploaded_file, model_name):
     ]
 
     # 🟢 3. 呼叫大模型
+    dispatcher = get_ai_dispatcher()
     response_text = dispatcher.chat(messages, response_format={"type": "json_object"})
     try:
         return json.loads(response_text)

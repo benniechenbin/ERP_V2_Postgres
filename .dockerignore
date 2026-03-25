@@ -4,7 +4,8 @@
 .git/
 .gitignore
 .gitattributes
-project_code_context.md
+*.md
+docs/
 
 # ==========================================
 # 2. 编程环境与缓存
@@ -25,18 +26,18 @@ venv/
 tests/
 test.docx
 test_ai_parsing.py
-experiments/                  # 🟢 拦截根目录的实验文件夹
-streamlit_lab/experiments/    # 🟢 修正拼写：拦截 UI 层的实验代码
+experiments/                  
+streamlit_lab/experiments/    
 streamlit_lab/pages/experiments/
 
 # ==========================================
 # 4. 本地数据、临时文件与打包产物
 # ==========================================
 data/uploads/*
-backend/model/* # 🟢 修正为单数
+backend/models/* # 
 *.log
 *.sqlite
-*.tar                         # 🟢 极其关键：拦截打包好的 release 包！
+*.tar                         
 *.zip
 *.gz
 

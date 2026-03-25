@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 from openai import OpenAI
 from dotenv import load_dotenv
+import streamlit as st
 
 # ==========================================
 # 🟢 终极路径锚点系统 (防呆设计)
@@ -46,11 +47,12 @@ class LLMDispatcher:
                 
                 print(f"⏳ 正在启动内置 AI 引擎，加载模型: {model_path}...")
                 self.client = Llama(
-                    model_path=str(model_path), # 必须转为字符串给 C++ 引擎
-                    n_ctx=8192,        
-                    n_threads=8,       
-                    verbose=False      
-                )
+                    model_path=str(model_path),
+                    n_ctx=8192,
+                    n_gpu_layers=-1,  # 👈 核心修改：-1 表示把所有层都交给 GPU
+                    n_threads=8,
+                    verbose=False
+)
                 print("✅ 内置 AI 引擎加载完毕！")
             except ImportError:
                 print("❌ 缺少本地 AI 引擎依赖！请执行: pip install llama-cpp-python")
@@ -81,5 +83,7 @@ class LLMDispatcher:
         except Exception as e:
             return f"AI 调度异常: {str(e)}"
 
-# 单例模式供全局调用
-ai_dispatcher = LLMDispatcher()
+@st.cache_resource(show_spinner="🧠 正在唤醒本地 AI 引擎，首次加载需 10-30 秒...")
+def get_ai_dispatcher():
+    """懒加载单例：全站共享同一个 AI 调度器实例"""
+    return LLMDispatcher()

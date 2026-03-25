@@ -14,3 +14,8 @@ PyPDF2
 python-docx
 openai
 python-dotenv
+# 指定额外的预编译 wheel 包下载源 (加速 llama-cpp-python 安装，免编译)
+--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+
+# AI 大模型依赖
+llama-cpp-python
