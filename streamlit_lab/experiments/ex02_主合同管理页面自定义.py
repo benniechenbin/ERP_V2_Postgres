@@ -208,7 +208,7 @@ def run(df, conn):
             # 只有上传了文件，且类别属于“需 AI 解析”时，按钮才可用
             ai_ready = uploaded_files is not None and len(uploaded_files) > 0 and "(需 AI 解析)" in file_category
             
-            if st.button("✨ 一键 AI 提取", type="primary", disabled=not ai_ready, use_container_width=True):
+            if st.button("✨ 一键 AI 提取", type="primary", disabled=not ai_ready, width="stretch"):
                 with st.spinner("🧠 AI 正在极速阅读合同条款，请稍候..."):
                     
                     # 🟢 呼叫真实的后端 AI 接口
@@ -315,7 +315,7 @@ def run(df, conn):
     def yearly_archive_dialog():
         st.warning("⚠️ 警告：此操作会将系统内所有【已计提】的合同和项目进行归档（软删除）。\n\n请务必确保本年度所有账务已核对完毕！")
         confirm = st.text_input("请输入 '确认结转' 以继续执行：")
-        if st.button("🚨 确认执行结转", type="primary", disabled=(confirm != "确认结转"), use_container_width=True):
+        if st.button("🚨 确认执行结转", type="primary", disabled=(confirm != "确认结转"), width="stretch"):
             
             # 🟢 1. 提取当前操作人
             current_user = st.session_state.get('user_name', 'System')
@@ -356,14 +356,14 @@ def run(df, conn):
     with col_add_btn:
         # 🟢 用 CSS 给出精确的下压边距，取代不稳定的 st.write("")
         st.markdown("<div style='margin-top: 22px;'></div>", unsafe_allow_html=True)
-        if st.button("➕ 录入新主合同", type="primary", use_container_width=True):
+        if st.button("➕ 录入新主合同", type="primary", width="stretch"):
             st.session_state.show_main_contract_dialog = True
             st.session_state.current_edit_data = None # 新增模式
             st.rerun()
             
     with col_archive_btn:
         st.markdown("<div style='margin-top: 22px;'></div>", unsafe_allow_html=True)
-        if st.button("📦 年度财务结转", use_container_width=True, help="将所有已计提的项目移入历史档案"):
+        if st.button("📦 年度财务结转", width="stretch", help="将所有已计提的项目移入历史档案"):
             yearly_archive_dialog()
 
     # 🟢 调用 components 里的卡片美化功能
@@ -518,7 +518,7 @@ def run(df, conn):
                 selected_biz_code = selected_contract_str.split(" | ")[0]
             
             with col_edit:
-                if st.button("✏️ 修改", use_container_width=True):
+                if st.button("✏️ 修改", width="stretch"):
                     current_contract_data = df_main[df_main['biz_code'] == selected_biz_code].iloc[0].to_dict()
                     st.session_state.show_main_contract_dialog = True
                     st.session_state.current_edit_data = current_contract_data
@@ -550,7 +550,7 @@ def run(df, conn):
                     operator = st.text_input("👤 经办人", value=current_user, disabled=True)
                     custom_remarks = st.text_input("📝 补充备注 (选填)", "")
                     
-                    submit_btn = st.form_submit_button("✅ 确认提交并核算", use_container_width=True)
+                    submit_btn = st.form_submit_button("✅ 确认提交并核算", width="stretch")
                     
                     if submit_btn:                    
                         final_remarks = f"【节点：{input_stage}】 {custom_remarks}".strip()
@@ -631,7 +631,7 @@ def run(df, conn):
                         selected_colls = edited_coll[edited_coll['🔴 作废'] == True]
                         if not selected_colls.empty:
                             st.warning(f"⚠️ 即将作废选中的 {len(selected_colls)} 笔收款记录，资金将从主合同中扣除。")
-                            if st.button("🗑️ 确认作废收款流水", type="primary", use_container_width=True):
+                            if st.button("🗑️ 确认作废收款流水", type="primary", width="stretch"):
                                 for _, row in selected_colls.iterrows():
                                     db.void_financial_record(row['流水号'], "collections", current_user)
                                 # 作废完毕后，立刻触发资金盘子重算
@@ -664,7 +664,7 @@ def run(df, conn):
                         selected_invs = edited_inv[edited_inv['🔴 作废'] == True]
                         if not selected_invs.empty:
                             st.warning(f"⚠️ 即将作废选中的 {len(selected_invs)} 笔开票记录。")
-                            if st.button("🗑️ 确认作废开票流水", type="primary", use_container_width=True):
+                            if st.button("🗑️ 确认作废开票流水", type="primary", width="stretch"):
                                 for _, row in selected_invs.iterrows():
                                     db.void_financial_record(row['发票号'], "invoices", current_user)
                                 # 作废完毕后，立刻触发资金盘子重算
@@ -705,7 +705,7 @@ def run(df, conn):
                     key=editor_key
                 )
                 
-                if st.button("💾 确认保存/覆盖计划", use_container_width=True, type="primary"):
+                if st.button("💾 确认保存/覆盖计划", width="stretch", type="primary"):
                     current_user = st.session_state.get('user_name', 'System')
                     success, msg = save_payment_plans(selected_biz_code, edited_plans, current_user, current_contract_amount)
                     
@@ -736,7 +736,7 @@ def run(df, conn):
                 if is_accrued:
                     st.success("✅ 该主合同已完成财务计提，等待年度结转。")
                 else:
-                    if st.button("📥 申请主合同计提结算", type="primary", use_container_width=True):
+                    if st.button("📥 申请主合同计提结算", type="primary", width="stretch"):
                         # 🟢 调用 crud_finance 里的核心计提函数 (内部已包含分包未结清的拦截逻辑)
                         success, msg = db.mark_project_as_accrued("main_contract", selected_biz_code)
                         if success:
@@ -750,7 +750,7 @@ def run(df, conn):
                 
                 # --- 2. 软删除操作区 ---
                 st.markdown("#### 🗑️ 合同作废")
-                if st.button("🗑️ 软删除该合同 (移入回收站)", use_container_width=True):
+                if st.button("🗑️ 软删除该合同 (移入回收站)", width="stretch"):
                     # 🚨 删除前的第一步：呼叫风控锁！
                     passed, error_msg = crud.check_main_contract_clearance(selected_biz_code)
                     

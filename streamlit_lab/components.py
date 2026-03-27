@@ -205,7 +205,7 @@ def render_dynamic_form(model_name: str, form_title: str, existing_data: dict = 
                 )
                 form_data[field_key] = user_input
                 
-        submit_btn = st.form_submit_button("💾 保存提交", use_container_width=True)
+        submit_btn = st.form_submit_button("💾 保存提交", width="stretch")
         
         if submit_btn:
             return form_data

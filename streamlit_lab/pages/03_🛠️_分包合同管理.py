@@ -129,7 +129,7 @@ def sub_contract_form_dialog(existing_data=None):
             )
         with c_btn:
             ai_ready = uploaded_files is not None and len(uploaded_files) > 0 and "(需 AI 解析)" in file_category
-            if st.button("✨ 一键 AI 提取", type="primary", disabled=not ai_ready, use_container_width=True, key="sub_ai_btn"):
+            if st.button("✨ 一键 AI 提取", type="primary", disabled=not ai_ready, width="stretch", key="sub_ai_btn"):
                 with st.spinner("🧠 AI 正在极速阅读分包条款，请稍候..."):
                     # 🟢 呼叫通用 AI 接口
                     ai_results = extract_contract_elements(uploaded_files[0], "sub_contract")
@@ -270,7 +270,7 @@ with col_title:
     st.title("🛡️ 分包支出与税务防线")
 with col_add_btn:
     st.write("") 
-    if st.button("➕ 录入新分包合同", type="primary", use_container_width=True):
+    if st.button("➕ 录入新分包合同", type="primary", width="stretch"):
         st.session_state.show_sub_contract_dialog = True
         st.session_state.current_sub_edit_data = None
         st.rerun()
@@ -375,7 +375,7 @@ else:
             selected_biz_code = selected_contract_str.split(" | ")[0]
         
         with col_edit:
-            if st.button("✏️ 修改", use_container_width=True):
+            if st.button("✏️ 修改", width="stretch"):
                 current_contract_data = df_sub[df_sub['biz_code'] == selected_biz_code].iloc[0].to_dict()
                 st.session_state.show_sub_contract_dialog = True
                 st.session_state.current_sub_edit_data = current_contract_data
@@ -403,7 +403,7 @@ else:
                 current_user = st.session_state.get('user_name', 'System')
                 custom_remarks = st.text_input("📝 补充备注 (选填)", "")
                 
-                if st.form_submit_button("✅ 确认提交并核算", use_container_width=True):
+                if st.form_submit_button("✅ 确认提交并核算", width="stretch"):
                     if "收票" in action_type:
                         sql = "INSERT INTO biz_sub_invoices (biz_code, sub_contract_code, invoice_amount, invoice_date, invoice_number, invoice_type, operator, remarks) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
                         vals = (f"SINV-{datetime.now().strftime('%Y%m%d%H%M%S')}", selected_biz_code, amount, action_date, invoice_num, invoice_type, current_user, custom_remarks)
@@ -447,7 +447,7 @@ else:
         # ================= Tab 3: 审计 =================
             with tab_audit:
                 st.markdown("#### 🗑️ 合同作废")
-                if st.button("🗑️ 软删除该分包合同", use_container_width=True):
+                if st.button("🗑️ 软删除该分包合同", width="stretch"):
                     target_table = cfg.get_model_config("sub_contract").get("table_name", "biz_sub_contracts")
                     current_user = st.session_state.get('user_name', 'System')
                     

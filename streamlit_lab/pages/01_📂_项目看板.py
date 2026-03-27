@@ -202,7 +202,7 @@ with c_info:
     st.caption(f"为您检索到 **{len(df_view)}** 个项目记录。")
 with c_ai_tool:
     # 变成一个次级按钮，融入操作流
-    if st.button("💡 催款策略助手", help="对当前表格中的项目进行还款风险评估", disabled=df_view.empty, use_container_width=True):
+    if st.button("💡 催款策略助手", help="对当前表格中的项目进行还款风险评估", disabled=df_view.empty, width="stretch"):
         show_ai_search_dialog(search_kw or "当前全盘", df_view)
 
 # =========================================================

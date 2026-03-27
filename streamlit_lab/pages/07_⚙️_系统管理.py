@@ -34,7 +34,7 @@ def create_user_dialog():
         password = st.text_input("初始密码 *", type="password", placeholder="建议包含字母和数字")
         role = st.selectbox("系统角色", ["普通员工", "部门经理", "财务专员", "系统管理员"])
         
-        if st.form_submit_button("💾 保存账号", use_container_width=True, type="primary"):
+        if st.form_submit_button("💾 保存账号", width="stretch", type="primary"):
             if not username or not password:
                 st.error("账号和密码不能为空！")
                 st.stop()
@@ -87,7 +87,7 @@ with tab_users:
     with c_title:
         st.subheader("账号与权限分配")
     with c_btn:
-        if st.button("➕ 新增账号", type="primary", use_container_width=True):
+        if st.button("➕ 新增账号", type="primary", width="stretch"):
             create_user_dialog()
             
     # 获取用户列表
@@ -153,7 +153,7 @@ with tab_users:
                 new_pwd = st.text_input("输入新密码", type="password", key="reset_pwd_input")
             with c_reset:
                 st.write("") # 占位对齐
-                if st.button("🔄 强制重置", type="primary", use_container_width=True):
+                if st.button("🔄 强制重置", type="primary", width="stretch"):
                     if new_pwd:
                         hashed_pwd = generate_password_hash(new_pwd)
                         execute_raw_sql("UPDATE sys_users SET password_hash = %s WHERE username = %s", (hashed_pwd, target_username))
