@@ -32,9 +32,11 @@ services:
       - .env  
 
     environment:
-
-      - DB_HOST=db  
-      
+      - DB_HOST=db        # 容器间通过服务名通信
+      - DB_PORT=5432      # 🟢 必须是 5432，这是 PG 的内部端口
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+      - DB_NAME=${DB_NAME}      
       - TZ=Asia/Shanghai            # 强制容器使用北京时间
       - PYTHONUNBUFFERED=1          # 确保 Python 日志能实时输出到终端控制台
       
