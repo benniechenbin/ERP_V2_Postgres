@@ -9,12 +9,12 @@ services:
     container_name: erp_postgres_v2
     restart: always
     environment:
-      POSTGRES_USER: erp_admin
-      POSTGRES_PASSWORD: admin
-      POSTGRES_DB: erp_core_db
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+      POSTGRES_DB: ${DB_NAME}
       TZ: Asia/Shanghai
     ports:
-      - "5435:5432"  # 宿主机 5435 映射到容器内 5432，避免与本地已安装的 PG 冲突
+      - "${DB_PORT}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data # 持久化数据库数据，防止容器重启后数据丢失
 
@@ -27,20 +27,19 @@ services:
     restart: always
     depends_on:
       - db
-    environment:
-      # 告诉后端去哪里找数据库 (注意 DB_HOST 填的是上面的服务名 'db')
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_USER=erp_admin
-      - DB_PASS=admin
-      - DB_NAME=erp_core_db
-      - TZ=Asia/Shanghai            # 强制容器使用北京时间
-      - PYTHONUNBUFFERED=1          # 确保 Python 日志能实时输出到终端控制台
-    ports:
-      - "8501:8501"
-    # 🟢 凌空注入：读取宿主机上的 .env 文件并将其作为环境变量注入容器
+ 
     env_file: 
       - .env  
+
+    environment:
+
+      - DB_HOST=db  
+      
+      - TZ=Asia/Shanghai            # 强制容器使用北京时间
+      - PYTHONUNBUFFERED=1          # 确保 Python 日志能实时输出到终端控制台
+      
+    ports:
+      - "8501:8501"
     volumes:
       # 挂载 1：业务附件（合同扫描件等），确保客户上传的文件存在宿主机的 host_data 里
       - ./host_data/uploads:/app/data/uploads 
