@@ -52,7 +52,6 @@ def load_main_contracts(trigger):
 def load_main_contracts(trigger):
     return db.fetch_dynamic_records('main_contract')
 
-# 🟢 新增：拉取往来单位库的公司名称
 @st.cache_data(ttl=5, show_spinner=False)
 def load_enterprise_names(trigger):
     df_ent = db.fetch_dynamic_records('enterprise')
@@ -214,11 +213,14 @@ def contract_form_dialog(existing_data=None):
         ai_ready = uploaded_files is not None and len(uploaded_files) > 0 and "(需 AI 解析)" in file_category
         
         if st.button("✨ 一键 AI 提取", type="primary", disabled=not ai_ready, width="stretch"):
+            ai_engine = ui.get_ai_dispatcher()
             with st.spinner("🧠 AI 正在极速阅读合同条款，请稍候..."):
                 
-                # 🟢 呼叫真实的后端 AI 接口
-                # 🟢 呼叫真实的后端 AI 接口
-                ai_results = extract_contract_elements(uploaded_files[0],"main_contract")
+                ai_results = extract_contract_elements(
+                    uploaded_files[0], 
+                    "main_contract", 
+                    dispatcher=ai_engine 
+                )
                 
                 if ai_results:
                     # 拿到当前表单的字段配置，用来知道哪个框是什么类型

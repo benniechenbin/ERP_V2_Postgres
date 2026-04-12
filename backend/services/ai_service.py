@@ -2,11 +2,8 @@ import json
 import PyPDF2
 from docx import Document
 
-from backend.ai.llm_dispatcher import get_ai_dispatcher
 from backend.utils.logger import sys_logger
 from backend.config import config_manager as cfg
-
-# 实例化调度器
 
 def extract_text_from_upload(uploaded_file):
     """从上传的文件流中提取文本"""
@@ -26,7 +23,7 @@ def extract_text_from_upload(uploaded_file):
         sys_logger.error(f"AI 文本提取失败: {e}")
         return ""
 
-def extract_contract_elements(uploaded_file, model_name):
+def extract_contract_elements(uploaded_file, model_name: str, dispatcher):
     """
     [V2 通用终极版] 动态全字段 AI 提取接口
     根据传入的 model_name (如 main_contract, sub_contract) 自动生成 Schema 提取！
@@ -70,9 +67,8 @@ def extract_contract_elements(uploaded_file, model_name):
         {"role": "user", "content": f"文本内容：\n{raw_text}"}
     ]
 
-    # 🟢 3. 呼叫大模型
-    dispatcher = get_ai_dispatcher()
     response_text = dispatcher.chat(messages, response_format={"type": "json_object"})
+    
     try:
         return json.loads(response_text)
     except Exception as e:

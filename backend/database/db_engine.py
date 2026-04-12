@@ -9,6 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from sqlalchemy import create_engine
 from backend.utils.logger import sys_logger 
+from backend.config.settings import settings
 
 # ==========================================
 # 1. 路径配置 (仅用于附件 UPLOAD)
@@ -20,12 +21,7 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 # ==========================================
 # 2. 数据库连接配置 (对接 Docker)
 # ==========================================
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_PORT = os.getenv("DB_PORT", "5435")
-DB_USER = os.getenv("DB_USER", "erp_admin")
-DB_PASS = os.getenv("DB_PASS", "admin")
-DB_NAME = os.getenv("DB_NAME", "erp_core_db")
-DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+DATABASE_URL = f"postgresql://{settings.DB_USER}:{settings.DB_PASS}@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
 
 sql_engine = create_engine(
     DATABASE_URL, 
@@ -55,7 +51,7 @@ def get_readonly_connection(db_name=None):
 
 def get_current_db_name():
     """返回当前连接的库名"""
-    return DB_NAME
+    return settings.DB_NAME
 
 
 # ==========================================

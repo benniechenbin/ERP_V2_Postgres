@@ -8,6 +8,8 @@ import json
 from backend.database.db_engine import get_connection
 from backend.config import config_manager as cfg
 from backend.database.crud import fetch_dynamic_records
+from backend.ai.llm_dispatcher import LLMDispatcher
+from backend.config.settings import settings
 
 def render_smart_widget(col_name, label, val, col_type, config_type, is_disabled, field_meta, override_options=None, override_format_func=None):
     """
@@ -270,3 +272,19 @@ def render_audit_timeline(biz_code: str, model_name: str = None):
         st.error(f"读取日志失败: {e}")
     finally:
         if conn: conn.close()
+
+# ==========================================
+# 🧠 AI 引擎前端单例工厂
+# ==========================================
+@st.cache_resource(show_spinner=False)
+def get_ai_dispatcher():
+    """
+    全站共享的 AI 调度器实例。
+    自带智能感知：仅在使用本地模型时弹出加载动画。
+    """
+    if settings.AI_PROVIDER == "local_gguf":
+        with st.spinner("🧠 正在唤醒本地 AI 引擎并载入内存，首次加载约需 10-30 秒..."):
+            return LLMDispatcher()
+    else:
+        # 云端 API (OpenAI/Ollama) 毫秒级初始化，静默加载
+        return LLMDispatcher()

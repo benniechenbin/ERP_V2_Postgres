@@ -17,6 +17,7 @@ from backend.database.db_engine import execute_raw_sql, get_connection
 from backend.config import config_manager as cfg
 import backend.database as db
 from backend.services.ai_service import extract_contract_elements
+from backend.ai.llm_dispatcher import LLMDispatcher
 
 import sidebar_manager
 import debug_kit 
@@ -55,6 +56,7 @@ def load_main_contracts_dict(trigger):
         return {}
     # 返回形如 {"MAIN-001": "万科项目", "MAIN-002": "海尔项目"} 的字典
     return pd.Series(df_main['project_name'].values, index=df_main['biz_code']).to_dict()
+
 @st.cache_data(ttl=5, show_spinner=False)
 def load_enterprise_names(trigger):
     df_ent = db.fetch_dynamic_records('enterprise')
@@ -130,9 +132,13 @@ def sub_contract_form_dialog(existing_data=None):
         with c_btn:
             ai_ready = uploaded_files is not None and len(uploaded_files) > 0 and "(需 AI 解析)" in file_category
             if st.button("✨ 一键 AI 提取", type="primary", disabled=not ai_ready, width="stretch", key="sub_ai_btn"):
+                ai_engine = ui.get_ai_dispatcher()
                 with st.spinner("🧠 AI 正在极速阅读分包条款，请稍候..."):
-                    # 🟢 呼叫通用 AI 接口
-                    ai_results = extract_contract_elements(uploaded_files[0], "sub_contract")
+                    ai_results = extract_contract_elements(
+                        uploaded_files[0], 
+                        "sub_contract", 
+                        dispatcher=ai_engine 
+                    )
                     
                     if ai_results:
                         field_meta = cfg.get_field_meta("sub_contract")

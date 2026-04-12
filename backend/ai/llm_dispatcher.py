@@ -1,8 +1,6 @@
-import os
 from pathlib import Path
 from openai import OpenAI
-from dotenv import load_dotenv
-import streamlit as st
+from backend.config.settings import settings
 
 # ==========================================
 # 🟢 终极路径锚点系统 (防呆设计)
@@ -13,51 +11,53 @@ CURRENT_DIR = Path(__file__).resolve().parent
 # 2. 向上找 2 层，精准定位到项目根目录 ERP_V2_Postgres/
 ROOT_DIR = CURRENT_DIR.parent.parent
 
-# 3. 显式加载根目录下的 .env 文件 (无论你在哪里运行启动命令，它都能找到！)
-env_path = ROOT_DIR / ".env"
-load_dotenv(dotenv_path=env_path)
 
 class LLMDispatcher:
     def __init__(self):
-        self.provider = os.getenv("AI_PROVIDER", "openai") # 'openai', 'ollama', 或 'local_gguf'
+        self.provider = settings.AI_PROVIDER 
         self.client = None
         self.model = None
         
         if self.provider == "openai":
             self.client = OpenAI(
-                api_key=os.getenv("OPENAI_API_KEY"),
-                base_url=os.getenv("OPENAI_BASE_URL")
+                api_key=settings.OPENAI_API_KEY,
+                base_url=settings.OPENAI_BASE_URL
             )
-            self.model = os.getenv("OPENAI_MODEL", "deepseek-chat")
+            self.model = settings.OPENAI_MODEL
             
         elif self.provider == "ollama":
             self.client = OpenAI(
                 api_key="ollama", 
-                base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+                base_url=settings.OLLAMA_BASE_URL
             )
-            self.model = os.getenv("OLLAMA_MODEL", "qwen2:7b")
+            self.model = settings.OLLAMA_MODEL
             
         elif self.provider == "local_gguf":
             try:
                 from llama_cpp import Llama
                 
                 # 🟢 自动寻址：定位到 backend/models/ 目录
-                model_filename = os.getenv("GGUF_MODEL_NAME", "DeepSeek-R1-Distill-Qwen-7B-Q4_K_M.gguf")
+                model_filename = settings.GGUF_MODEL_NAME
+                
+                # 防御性编程：检查 GGUF 名字是否配置了
+                if not model_filename:
+                    raise ValueError("使用本地模型，但 .env 中未配置 GGUF_MODEL_NAME")
+                    
                 model_path = ROOT_DIR / "backend" / "models" / model_filename
                 
                 print(f"⏳ 正在启动内置 AI 引擎，加载模型: {model_path}...")
                 self.client = Llama(
                     model_path=str(model_path),
                     n_ctx=8192,
-                    n_gpu_layers=-1,  # 👈 核心修改：-1 表示把所有层都交给 GPU
+                    n_gpu_layers=-1,  # 👈 核心修改：-1 表示把所有层都交给 GPU 
                     n_threads=8,
                     verbose=False
-)
+                )
                 print("✅ 内置 AI 引擎加载完毕！")
             except ImportError:
-                print("❌ 缺少本地 AI 引擎依赖！请执行: pip install llama-cpp-python")
+                print("❌ 缺少本地 AI 引擎依赖！请执行: pip install llama-cpp-python") [cite: 1]
             except Exception as e:
-                print(f"❌ 本地模型加载失败，请检查文件是否存在: {e}")
+                print(f"❌ 本地模型加载失败，请检查文件是否存在: {e}") [cite: 1]
 
     def chat(self, messages, response_format=None):
         try:
@@ -82,8 +82,3 @@ class LLMDispatcher:
                 
         except Exception as e:
             return f"AI 调度异常: {str(e)}"
-
-@st.cache_resource(show_spinner="🧠 正在唤醒本地 AI 引擎，首次加载需 10-30 秒...")
-def get_ai_dispatcher():
-    """懒加载单例：全站共享同一个 AI 调度器实例"""
-    return LLMDispatcher()
