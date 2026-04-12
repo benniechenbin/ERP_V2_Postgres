@@ -36,10 +36,10 @@ class Settings(BaseSettings):
     # ================= 5. 数据库配置 (从 .env.example 补全) =================
     # Pydantic 会自动把字符串 "localhost" 转为 str，把 "5432" 转为 int
     DB_HOST: str = Field(default="localhost")
-    DB_PORT: int = Field(default=5432) 
-    DB_USER: str = Field(default="postgres")
-    DB_PASS: str = Field(default="password")
-    DB_NAME: str = Field(default="postgres")
+    DB_PORT: int = Field(default=5435) 
+    DB_USER: str = Field(default="erp_admin")
+    DB_PASS: str = Field(default="admin")
+    DB_NAME: str = Field(default="erp_core_db")
 
     # Pydantic V2 标准配置
     model_config = SettingsConfigDict(
