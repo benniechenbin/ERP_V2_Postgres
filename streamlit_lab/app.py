@@ -27,7 +27,7 @@ from backend.config import config_manager as cfg
 import sidebar_manager
 import debug_kit
 
-st.set_page_config(page_title="建筑专项管理系统", page_icon="🏗️", layout="wide")
+st.set_page_config(page_title="合同管理系统", page_icon="🏗️", layout="wide")
 if 'user_name' not in st.session_state:
     st.session_state['user_name'] = '管理员(单机试用)'
 # 1. 侧边栏
@@ -164,7 +164,7 @@ def load_upcoming_receivables():
 
 
 # 3. 页面渲染
-st.title(f"👋 欢迎使用建筑专项项目管理系统")
+st.title(f"👋 欢迎使用合同管理系统")
 st.caption(f"今天是 {datetime.now().strftime('%Y年%m月%d日')} | 系统状态: 🟢 正常运行")
 
 # 加载数据
