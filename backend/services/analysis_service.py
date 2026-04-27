@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import datetime
 import json
 from backend.database.db_engine import get_connection
-from backend.utils.logger import sys_logger
+from backend.observability.logger import setup_logger, sys_logger
 
 # =========================================================
 # 💰 引擎一：全局双向现金流趋势 (Cash Flow Trend)
@@ -43,7 +43,7 @@ def get_cash_flow_trend(year: int = None) -> pd.DataFrame:
         
         return df_trend
     except Exception as e:
-        sys_logger.error(f"🚨 现金流趋势测算失败: {e}", exc_info=True)
+        sys_logger.exception(f"🚨 现金流趋势测算失败: {e}", exc_info=True)
         return pd.DataFrame()
     finally:
         if conn: conn.close()
@@ -72,7 +72,7 @@ def calculate_overall_margin() -> dict:
             "margin_rate": margin_rate
         }
     except Exception as e:
-        sys_logger.error(f"🚨 业财剪刀差测算失败: {e}", exc_info=True)
+        sys_logger.exception(f"🚨 业财剪刀差测算失败: {e}", exc_info=True)
         return {"total_income": 0, "total_cost": 0, "gross_profit": 0, "margin_rate": 0}
     finally:
         if conn: conn.close()
@@ -104,7 +104,7 @@ def get_tax_exposure_stats() -> dict:
             "sub_exposure": max(0, sub_pay - sub_inv_rec)  
         }
     except Exception as e:
-        sys_logger.error(f"🚨 税务敞口测算失败: {e}", exc_info=True)
+        sys_logger.exception(f"🚨 税务敞口测算失败: {e}", exc_info=True)
         return {}
     finally:
         if conn: conn.close()
@@ -134,7 +134,7 @@ def get_manager_performance(year: int = None) -> pd.DataFrame:
         df['total_collected'] = df['total_collected'].astype(float)
         return df
     except Exception as e:
-        sys_logger.error(f"🚨 绩效聚合失败: {e}", exc_info=True)
+        sys_logger.exception(f"🚨 绩效聚合失败: {e}", exc_info=True)
         return pd.DataFrame()
     finally:
         if conn: conn.close()
@@ -148,7 +148,7 @@ def get_high_risk_projects(debt_threshold=100000, rate_threshold=0.2, grace_days
     屏蔽新签合同悖论，仅侦测：欠款 > 阈值 且 欠款比例 > 比例 且 签约时间 > 宽限期(默认半年)
     """
     from backend.database.db_engine import get_connection
-    from backend.utils.logger import sys_logger
+    from backend.observability.logger import setup_logger, sys_logger
     import pandas as pd
     
     conn = get_connection()
@@ -191,7 +191,7 @@ def get_high_risk_projects(debt_threshold=100000, rate_threshold=0.2, grace_days
         return df_risk
         
     except Exception as e:
-        sys_logger.error(f"🚨 风险侦测失败: {e}", exc_info=True)
+        sys_logger.exception(f"🚨 风险侦测失败: {e}", exc_info=True)
         return pd.DataFrame()
     finally:
         if conn: conn.close()

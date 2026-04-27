@@ -372,7 +372,7 @@ def yearly_archive_dialog():
                     success_count=success_count
                 )
             except Exception as e:
-                print(f"写入结转日志失败: {e}")
+                sys_logger.exception(f"写入结转日志失败: {e}")
 
             if ui and hasattr(ui, 'show_toast_success'): ui.show_toast_success(msg)
             trigger_refresh()

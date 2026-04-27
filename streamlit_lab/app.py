@@ -26,6 +26,13 @@ from backend.database import schema
 from backend.config import config_manager as cfg
 import sidebar_manager
 import debug_kit
+from backend.observability.logger import setup_logger, sys_logger
+from backend.core.bootstrap import init_system
+
+if 'system_initialized' not in st.session_state:
+    init_system()
+    st.session_state.system_initialized = True
+
 
 st.set_page_config(page_title="合同管理系统", page_icon="🏗️", layout="wide")
 if 'user_name' not in st.session_state:
@@ -38,10 +45,10 @@ sidebar_manager.render_sidebar()
 @st.cache_resource
 def init_system_database():
     """🟢 增加 5 秒缓冲，确保数据库服务已就绪"""
-    print("⏳ 等待数据库容器响应...")
+    sys_logger.info("⏳ 等待数据库容器响应...")
     time.sleep(5)  # 给予数据库充足的冷启动时间
     schema.sync_database_schema()
-    print("✅ 数据库底座初始化完毕！")
+    sys_logger.info("✅ 数据库底座初始化完毕！")
 
 # 立即调用！(由于有 cache_resource 保护，它在服务器运行期间只会执行这一次)
 init_system_database()
@@ -107,7 +114,7 @@ def load_upcoming_receivables():
     try:
         df_plans = pd.read_sql_query("SELECT * FROM biz_payment_plans WHERE deleted_at IS NULL", conn)
     except Exception as e:
-        print(f"首页预警读取失败: {e}")
+        sys_logger.exception(f"首页预警读取失败: {e}")
         df_plans = pd.DataFrame()
     finally:
         conn.close()

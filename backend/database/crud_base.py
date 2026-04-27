@@ -8,7 +8,7 @@ from backend.database.db_engine import get_connection, sql_engine
 from backend.database.schema import get_all_data_tables
 from backend.core import core_logic  # 用于应用业务公式
 from backend.utils.formatters import normalize_db_value
-from backend.utils.logger import sys_logger
+from backend.observability.logger import setup_logger, sys_logger
 
 def upsert_dynamic_record(model_name: str, data_dict: dict, record_id: int = None, operator_id: int = 0, operator_name: str = 'System'):
     """
@@ -123,7 +123,7 @@ def upsert_dynamic_record(model_name: str, data_dict: dict, record_id: int = Non
         
     except Exception as e:
         if conn: conn.rollback()
-        sys_logger.error(f"🚨 数据写入失败 [{model_name}]: {e}", exc_info=True)
+        sys_logger.exception(f"🚨 数据写入失败 [{model_name}]: {e}", exc_info=True)
         return False, str(e)
     finally:
         if conn: conn.close()
@@ -139,7 +139,7 @@ def fetch_dynamic_records(model_name: str, keyword: str = "") -> pd.DataFrame:
     field_meta = model_config.get("field_meta", {})
     
     if not table_name:
-        print(f"🚨 模型 {model_name} 配置不存在！")
+        sys_logger.wanning(f"🚨 模型 {model_name} 配置不存在！")
         return pd.DataFrame()
         
     conn = None
@@ -178,7 +178,7 @@ def fetch_dynamic_records(model_name: str, keyword: str = "") -> pd.DataFrame:
 
     except Exception as e:
         # 如果这里报错，测试脚本就会打印这句
-        print(f"🚨 动态数据读取失败: {e}") 
+        sys_loggerexception(f"🚨 动 态数据读取失败: {e}") 
         return pd.DataFrame()
     finally:
         # 🟢 确保原生连接被关闭
@@ -255,7 +255,7 @@ def generate_biz_code(table_name, prefix_char="TMP"):
             
         return f"{prefix}{seq:03d}"
     except Exception as e:
-        print(f"自动编号生成失败: {e}")
+        sys_loggerexception(f"自动编号生成失败: {e}")
         return f"{prefix}999" 
     finally:
         if conn: conn.close()

@@ -47,7 +47,7 @@ def load_data_rules():
                 data = json.load(f)
                 return _auto_sync_labels(data)
         except Exception as e:
-            print(f"读取配置失败: {e}")
+            sys_loggerexception(f"读取配置失败: {e}")
     return base_config
 
 def save_data_rules(rules_dict):
@@ -58,7 +58,7 @@ def save_data_rules(rules_dict):
             json.dump(synced_data, f, indent=4, ensure_ascii=False)
         return True
     except Exception as e:
-        print(f"Save Config Error: {e}")
+        sys_loggerexception(f"保存配置失败: {e}")
         return False
 
 # ========================================================

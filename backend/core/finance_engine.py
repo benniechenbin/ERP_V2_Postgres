@@ -1,7 +1,7 @@
 import pandas as pd
 import psycopg2.extras
 from backend.database.db_engine import get_connection
-from backend.utils.logger import sys_logger 
+from backend.observability.logger import setup_logger, sys_logger
 
 # ==========================================
 # ⚙️ 引擎一：主合同水池核算
@@ -207,7 +207,7 @@ def validate_sub_payment_risk(sub_biz_code: str, apply_amount: float, conn=None)
         return True, "风控测算通过，允许付款"
         
     except Exception as e:
-        sys_logger.error(f"  [异常] 风控引擎崩溃: {e}", exc_info=True)
+        sys_logger.exception(f"  [异常] 风控引擎崩溃: {e}", exc_info=True)
         return False, f"风控异常: {e}"
     finally:
         if not is_external_conn and conn: 

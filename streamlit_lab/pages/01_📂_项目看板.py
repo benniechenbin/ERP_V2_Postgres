@@ -120,7 +120,7 @@ def load_urgent_receivables():
         df = pd.read_sql_query(sql, conn)
         return df
     except Exception as e:
-        print(f"获取预警失败: {e}")
+        sys_logger.exception(f"获取预警失败: {e}")
         return pd.DataFrame()
     finally:
         if conn: conn.close()

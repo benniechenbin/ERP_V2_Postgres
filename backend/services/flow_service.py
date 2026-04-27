@@ -84,7 +84,7 @@ def get_project_flows(biz_code, source_table):
         df = pd.read_sql_query(query, conn, params=(biz_code, source_table))
         return df
     except Exception as e:
-        print(f"查询流水失败: {e}")
+        sys_logger.exception(f"查询流水失败: {e}")
         return pd.DataFrame()
     finally:
         if conn: conn.close()

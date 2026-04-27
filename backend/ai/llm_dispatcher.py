@@ -45,7 +45,7 @@ class LLMDispatcher:
                     
                 model_path = ROOT_DIR / "backend" / "models" / model_filename
                 
-                print(f"⏳ 正在启动内置 AI 引擎，加载模型: {model_path}...")
+                sys_logger.info(f"⏳ 正在启动内置 AI 引擎，加载模型: {model_path}...")
                 self.client = Llama(
                     model_path=str(model_path),
                     n_ctx=8192,
@@ -53,11 +53,11 @@ class LLMDispatcher:
                     n_threads=8,
                     verbose=False
                 )
-                print("✅ 内置 AI 引擎加载完毕！")
+                sys_logger.info("✅ 内置 AI 引擎加载完毕！")
             except ImportError:
-                print("❌ 缺少本地 AI 引擎依赖！请执行: pip install llama-cpp-python") [cite: 1]
+                sys_sys_logger.exception("❌ 缺少本地 AI 引擎依赖！请执行: pip install llama-cpp-python") [cite: 1]
             except Exception as e:
-                print(f"❌ 本地模型加载失败，请检查文件是否存在: {e}") [cite: 1]
+                sys_sys_logger.exception(f"❌ 本地模型加载失败，请检查文件是否存在: {e}") [cite: 1]
 
     def chat(self, messages, response_format=None):
         try:

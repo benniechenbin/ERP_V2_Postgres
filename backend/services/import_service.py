@@ -6,7 +6,7 @@ from backend.utils import formatters
 from backend.database import db_engine, schema, crud
 from backend.config import config_manager as cfg 
 from backend import services as svc
-from backend.utils.logger import sys_logger
+from backend.observability.logger import setup_logger, sys_logger
 warnings.filterwarnings('ignore', category=UserWarning, module='openpyxl')
 
 def run_import_process(
@@ -48,7 +48,7 @@ def run_import_process(
             )
             conn.commit()
         except Exception as e:
-            sys_logger.error(f"覆盖导入清理旧数据失败: {e}")
+            sys_logger.exception(f"覆盖导入清理旧数据失败: {e}")
             if conn: conn.rollback()
         finally:
             if conn: conn.close()
@@ -157,7 +157,7 @@ def _verify_prime_id_exists(biz_code, table_name):
         cursor.execute(f'SELECT 1 FROM "{table_name}" WHERE biz_code = %s', (str(biz_code),))
         return cursor.fetchone() is not None
     except Exception as e:
-        print(f"验证主键失败: {e}")
+        sys_logger.exception(f"验证主键失败: {e}")
         return False
     finally:
         if conn: conn.close()

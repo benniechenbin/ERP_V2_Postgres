@@ -6,7 +6,7 @@ from backend.database.db_engine import get_connection
 from backend.database.schema import get_all_data_tables, has_column
 from backend.database.crud_base import upsert_dynamic_record  # 🟢 内部调用基础引擎
 from backend.core.finance_engine import validate_sub_payment_risk
-from backend.utils.logger import sys_logger
+from backend.observability.logger import setup_logger, sys_logger
 
 
 # ==========================================
@@ -167,7 +167,7 @@ def submit_sub_payment(sub_biz_code: str, payment_amount: float, operator: str, 
         
     except Exception as e:
         if conn: conn.rollback()
-        sys_logger.error(f"🚨 付款落库失败 [{sub_biz_code}]: {e}", exc_info=True)
+        sys_logger.exception(f"🚨 付款落库失败 [{sub_biz_code}]: {e}", exc_info=True)
         return False, f"落库失败: {e}"
     finally:
         if conn: conn.close()

@@ -2,7 +2,7 @@ import json
 import PyPDF2
 from docx import Document
 
-from backend.utils.logger import sys_logger
+from backend.observability.logger import setup_logger, sys_logger
 from backend.config import config_manager as cfg
 
 def extract_text_from_upload(uploaded_file):
@@ -20,7 +20,7 @@ def extract_text_from_upload(uploaded_file):
                 text += para.text + "\n"
         return text[:8000] 
     except Exception as e:
-        sys_logger.error(f"AI 文本提取失败: {e}")
+        sys_logger.exception(f"AI 文本提取失败: {e}")
         return ""
 
 def extract_contract_elements(uploaded_file, model_name: str, dispatcher):
@@ -72,5 +72,5 @@ def extract_contract_elements(uploaded_file, model_name: str, dispatcher):
     try:
         return json.loads(response_text)
     except Exception as e:
-        sys_logger.error(f"AI 解析全字段 JSON 失败: {e}")
+        sys_logger.exception(f"AI 解析全字段 JSON 失败: {e}")
         return {}

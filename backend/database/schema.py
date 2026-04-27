@@ -7,7 +7,7 @@ from backend.database.db_engine import get_connection
 
 # 引入刚刚解耦出去的定制表模块
 from backend.database.custom_schema import execute_custom_static_tables
-from backend.utils.logger import sys_logger
+from backend.observability.logger import setup_logger, sys_logger
 
 # =========================================================
 # 1. 结构探测与工具库 (全部保留您的原始代码)
@@ -20,7 +20,7 @@ def get_table_columns(table_name):
         cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = %s", (table_name,))
         return [row[0] for row in cur.fetchall()]
     except Exception as e:
-        print(f"获取列失败: {e}")
+        sys_logger.exception(f"获取列失败: {e}")
         return []
     finally:
         if conn: conn.close()
@@ -33,7 +33,7 @@ def get_table_schema(table_name):
         cur.execute("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = %s", (table_name,))
         return [{"name": row[0], "type": row[1]} for row in cur.fetchall()]
     except Exception as e:
-        print(f"获取表结构失败: {e}")
+        sys_logger.exception(f"获取表结构失败: {e}")
         return []
     finally:
         if conn: conn.close()
@@ -119,9 +119,9 @@ def _create_dynamic_business_tables(cursor):
                 
                 try:
                     cursor.execute(f'ALTER TABLE "{table_name}" ADD COLUMN IF NOT EXISTS "{field_key}" {alter_type};')
-                    print(f"🔧 热更新：表 [{table_name}] 自动新增列 [{field_key}]")
+                    sys_logger.info(f"🔧 热更新：表 [{table_name}] 自动新增列 [{field_key}]")
                 except Exception as alt_e:
-                    print(f"⚠️ 追加列失败: {alt_e}")
+                    sys_logger.exception(f"⚠️ 追加列失败: {alt_e}")
 
 # =========================================================
 # 3. 统一入口

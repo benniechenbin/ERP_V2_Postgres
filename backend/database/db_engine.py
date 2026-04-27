@@ -8,7 +8,7 @@ import pandas as pd
 from datetime import datetime
 from pathlib import Path
 from sqlalchemy import create_engine
-from backend.utils.logger import sys_logger 
+from backend.observability.logger import setup_logger, sys_logger 
 from backend.config.settings import settings
 
 # ==========================================
@@ -38,7 +38,7 @@ def get_connection():
         return sql_engine.raw_connection()
     except Exception as e:
         # 🟢 替换原来的 print，把致命错误记录到日志
-        sys_logger.error(f"🚨 数据库连接池获取失败: {e}", exc_info=True)
+        sys_logger.exception(f"🚨 数据库连接池获取失败: {e}", exc_info=True)
         raise e
         
 def get_readonly_connection(db_name=None):

@@ -60,7 +60,7 @@ def load_analysis_data():
                     tmp_df['origin_table'] = tbl 
                     df_list.append(tmp_df)
             except Exception as e:
-                print(f"读取表 {tbl} 失败: {e}")
+                sys_logger.exception(f"读取表 {tbl} 失败: {e}")
                 
         if not df_list:
             return pd.DataFrame(), "所有表均无有效数据"
