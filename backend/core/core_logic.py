@@ -2,8 +2,6 @@ import pandas as pd
 from backend.config import config_manager as cfg
 from backend.core import finance_engine
 
-
-
 def apply_business_formulas(df: pd.DataFrame, model_name: str) -> pd.DataFrame:
     if df is None or df.empty:
         return df
