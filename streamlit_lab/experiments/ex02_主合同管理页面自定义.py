@@ -19,6 +19,7 @@ import backend.database as db
 from backend import services as svc
 # 核心 AI 提取接口
 from backend.services.ai_service import get_main_contract_elements 
+from backend.observability.logger import sys_logger 
 
 import sidebar_manager
 import debug_kit 

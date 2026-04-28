@@ -178,7 +178,7 @@ def fetch_dynamic_records(model_name: str, keyword: str = "") -> pd.DataFrame:
 
     except Exception as e:
         # 如果这里报错，测试脚本就会打印这句
-        sys_loggerexception(f"🚨 动 态数据读取失败: {e}") 
+        sys_logger.exception(f"🚨 动 态数据读取失败: {e}") 
         return pd.DataFrame()
     finally:
         # 🟢 确保原生连接被关闭
@@ -255,7 +255,7 @@ def generate_biz_code(table_name, prefix_char="TMP"):
             
         return f"{prefix}{seq:03d}"
     except Exception as e:
-        sys_loggerexception(f"自动编号生成失败: {e}")
+        sys_logger.exception(f"自动编号生成失败: {e}")
         return f"{prefix}999" 
     finally:
         if conn: conn.close()

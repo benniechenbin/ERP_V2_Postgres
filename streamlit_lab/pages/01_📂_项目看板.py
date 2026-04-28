@@ -19,6 +19,7 @@ import debug_kit
 
 try:
     from backend.services.ai_service import AIService  
+    from backend.observability.logger import sys_logger 
 except ImportError:
     pass
 

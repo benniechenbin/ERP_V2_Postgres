@@ -49,6 +49,8 @@ services:
       - ./backend/models:/app/backend/models
       # 挂载 3：实验页面（Streamlit 实验结果）
       - ./host_data/experiments:/app/streamlit_lab/experiments
+      # 挂载 4：日志目录（Streamlit 日志）
+      - ./logs:/app/logs
 
 # ==========================================
 # 3. 💾 全局数据卷声明

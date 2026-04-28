@@ -1,5 +1,6 @@
 import pandas as pd
 from backend.database.db_engine import get_connection, sql_engine, UPLOAD_DIR
+from backend.observability.logger import sys_logger 
 
 def update_biz_code_cascade(old_code, new_code, table_name):
     """
@@ -42,7 +43,7 @@ def get_attachment_counts():
         sql = "SELECT biz_code, source_table, COUNT(id) as file_count FROM sys_attachments GROUP BY biz_code, source_table"
         return pd.read_sql_query(sql, conn)
     except Exception as e:
-        sys_loggerexception(f"附件统计查询失败: {e}")
+        sys_logger.exception(f"附件统计查询失败: {e}")
         return pd.DataFrame()
     finally:
         if conn: conn.close()
@@ -140,7 +141,7 @@ def log_job_operation(operator: str, file_name: str, import_type: str, success_c
         return True
     except Exception as e:
         if conn: conn.rollback()
-        sys_loggerexception(f"🚨 写入批量任务日志失败: {e}")
+        sys_logger.exception(f"🚨 写入批量任务日志失败: {e}")
         return False
     finally:
         if conn: conn.close()     

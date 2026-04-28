@@ -1,6 +1,7 @@
 import pandas as pd
 from backend.config import config_manager as cfg
 from backend.core import finance_engine
+from backend.observability.logger import sys_logger 
 
 def apply_business_formulas(df: pd.DataFrame, model_name: str) -> pd.DataFrame:
     if df is None or df.empty:
@@ -35,7 +36,7 @@ def apply_business_formulas(df: pd.DataFrame, model_name: str) -> pd.DataFrame:
             # 🟢 使用 engine='python' 兼容性更好
             df_result[target_col] = df_result.eval(formula_str, engine='python')
         except Exception as e:
-            sys_loggerexception(f"⚠️ 公式执行失败 [{target_col} = {formula_str}]: {e}")
+            sys_logger.exception(f"⚠️ 公式执行失败 [{target_col} = {formula_str}]: {e}")
             df_result[target_col] = 0.0
 
     return df_result

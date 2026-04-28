@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import datetime
 # 🟢 接入数据库大本营
 from backend.database import get_connection
+from backend.observability.logger import sys_logger 
 
 def recalculate_project_total(biz_code, source_table):
     """

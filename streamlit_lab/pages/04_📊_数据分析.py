@@ -18,6 +18,7 @@ import plotly.express as px
 from backend import database as db
 from backend.config import config_manager as cfg
 from backend.utils import formatters as ut
+from backend.observability.logger import sys_logger 
 
 import sidebar_manager
 import debug_kit
