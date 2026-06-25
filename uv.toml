@@ -1,0 +1,4 @@
+# uv.toml
+[pip]
+no-index = true
+find-links = ["wheels"]

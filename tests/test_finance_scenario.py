@@ -13,6 +13,7 @@ sys.path.insert(0, str(ROOT_DIR))
 from backend.database.db_engine import get_connection, execute_raw_sql
 from backend.database import crud_base
 from backend.database import crud_finance
+from backend.database.schema import sync_database_schema
 
 def clean_test_data():
     """清理测试遗留的脏数据"""
@@ -42,6 +43,9 @@ def inject_raw_data(table, data_dict):
         conn.close()
 
 def run_scenario():
+    print("🔄 0. 正在同步数据库表结构...")
+    sync_database_schema()
+    
     print("🧹 1. 正在清理历史测试数据...")
     clean_test_data()
 

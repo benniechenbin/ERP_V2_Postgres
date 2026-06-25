@@ -96,7 +96,7 @@ def get_deleted_projects(tables):
             try:
                 # 🟢 替换为 biz_code
                 sql = f'SELECT id, biz_code, project_name, manager, "{tbl}" as origin_table FROM "{tbl}" WHERE deleted_at IS NOT NULL'
-                df_del = pd.read_sql_query(sql, sql_engine)
+                df_del = pd.read_sql_query(sql, conn)
                 if not df_del.empty:
                     deleted_list.extend(df_del.to_dict('records'))
             except:

@@ -5,7 +5,7 @@ import warnings
 
 from backend.config import config_manager as cfg
 from backend.database.db_engine import get_connection, sql_engine
-from backend.database.schema import get_all_data_tables
+from backend.database.schema import get_all_data_tables, get_table_columns
 from backend.core import core_logic  # 用于应用业务公式
 from backend.utils.formatters import normalize_db_value
 from backend.observability.logger import setup_logger, sys_logger
@@ -27,8 +27,7 @@ def upsert_dynamic_record(model_name: str, data_dict: dict, record_id: int = Non
         cursor = conn.cursor()
         
         # 1. 智能探针：获取数据库真实物理列
-        cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = %s", (table_name,))
-        valid_columns = {row[0] for row in cursor.fetchall()}
+        valid_columns = set(get_table_columns(table_name))
         
         # 2. 🟢 智能分拣 (Smart Routing)
         physical_data = {}

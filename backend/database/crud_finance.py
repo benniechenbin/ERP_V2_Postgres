@@ -246,8 +246,9 @@ def void_financial_record(record_code, record_type, operator):
     sql = f"""
         UPDATE {table_name} 
         SET deleted_at = CURRENT_TIMESTAMP,
-            remarks = CONCAT(COALESCE(remarks, ''), ' [🔴 已由 ', %s, ' 作废]')
+            remarks = COALESCE(remarks, '') || ' [🔴 已由 ' || %s || ' 作废]'
         WHERE biz_code = %s AND deleted_at IS NULL
+
     """
     # 直接调用你 db_engine 里的工具函数
     from .db_engine import execute_raw_sql

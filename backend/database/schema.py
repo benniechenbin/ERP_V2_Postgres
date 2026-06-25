@@ -3,6 +3,7 @@
 
 import re
 from backend.config import config_manager as cfg
+from backend.config.settings import settings
 from backend.database.db_engine import get_connection
 
 # 引入刚刚解耦出去的定制表模块
@@ -17,8 +18,12 @@ def get_table_columns(table_name):
     try:
         conn = get_connection()
         cur = conn.cursor()
-        cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = %s", (table_name,))
-        return [row[0] for row in cur.fetchall()]
+        if settings.DB_TYPE == "sqlite":
+            cur.execute(f"PRAGMA table_info(\"{table_name}\")")
+            return [row[1] for row in cur.fetchall()]
+        else:
+            cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = %s", (table_name,))
+            return [row[0] for row in cur.fetchall()]
     except Exception as e:
         sys_logger.exception(f"获取列失败: {e}")
         return []
@@ -30,8 +35,12 @@ def get_table_schema(table_name):
     try:
         conn = get_connection()
         cur = conn.cursor()
-        cur.execute("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = %s", (table_name,))
-        return [{"name": row[0], "type": row[1]} for row in cur.fetchall()]
+        if settings.DB_TYPE == "sqlite":
+            cur.execute(f"PRAGMA table_info(\"{table_name}\")")
+            return [{"name": row[1], "type": row[2].lower()} for row in cur.fetchall()]
+        else:
+            cur.execute("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = %s", (table_name,))
+            return [{"name": row[0], "type": row[1]} for row in cur.fetchall()]
     except Exception as e:
         sys_logger.exception(f"获取表结构失败: {e}")
         return []
@@ -52,8 +61,12 @@ def get_all_data_tables():
     try:
         conn = get_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND (table_name LIKE 'data_%' OR table_name LIKE 'biz_%')")
-        return [row[0] for row in cursor.fetchall()]
+        if settings.DB_TYPE == "sqlite":
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND (name LIKE 'data_%' OR name LIKE 'biz_%')")
+            return [row[0] for row in cursor.fetchall()]
+        else:
+            cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND (table_name LIKE 'data_%' OR table_name LIKE 'biz_%')")
+            return [row[0] for row in cursor.fetchall()]
     except Exception:
         return []
     finally:
@@ -83,8 +96,6 @@ def _create_dynamic_business_tables(cursor):
         ]
         
         for field_key, meta in field_meta.items():
-            if field_key in formula_cols:
-                continue 
             field_type = meta.get("type", "text")
             if field_type == "money": col_def = f"{field_key} NUMERIC(15,2) DEFAULT 0.00"
             elif field_type == "percent": col_def = f"{field_key} REAL DEFAULT 0"
@@ -105,12 +116,10 @@ def _create_dynamic_business_tables(cursor):
         cursor.execute(final_sql)
         
         # 🟢 热更新：为已存在的表追加 JSON 中新增的列
-        cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = %s", (table_name,))
-        existing_columns = {row[0] for row in cursor.fetchall()}
+        existing_columns = set(get_table_columns(table_name))
+        
         
         for field_key, meta in field_meta.items():
-            if field_key in formula_cols:
-                continue
             if field_key not in existing_columns:
                 field_type = meta.get("type", "text")
                 if field_type == "money": alter_type = "NUMERIC(15,2) DEFAULT 0.00"
@@ -118,7 +127,7 @@ def _create_dynamic_business_tables(cursor):
                 else: alter_type = "VARCHAR(255)"
                 
                 try:
-                    cursor.execute(f'ALTER TABLE "{table_name}" ADD COLUMN IF NOT EXISTS "{field_key}" {alter_type};')
+                    cursor.execute(f'ALTER TABLE "{table_name}" ADD COLUMN "{field_key}" {alter_type};')
                     sys_logger.info(f"🔧 热更新：表 [{table_name}] 自动新增列 [{field_key}]")
                 except Exception as alt_e:
                     sys_logger.exception(f"⚠️ 追加列失败: {alt_e}")

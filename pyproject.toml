@@ -1,0 +1,32 @@
+[project]
+name = "erp-v2-postgres"
+version = "0.1.0"
+description = "ERP V2 with PostgreSQL and SQLite support"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "streamlit",
+    "pandas",
+    "openpyxl",
+    "requests",
+    "ollama",
+    "plotly",
+    "watchdog",
+    "psycopg2-binary==2.9.9",
+    "sqlalchemy==2.0.48",
+    "tabulate",
+    "werkzeug",
+    "PyPDF2",
+    "python-docx",
+    "openai",
+    "python-dotenv>=1.0.0",
+    "loguru",
+    "llama-cpp-python==0.3.31",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "pytest",
+]
+
+[tool.pytest.ini_options]
+pythonpath = "."
+testpaths = ["tests"]

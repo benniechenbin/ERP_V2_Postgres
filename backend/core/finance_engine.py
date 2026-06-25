@@ -1,5 +1,10 @@
 import pandas as pd
-import psycopg2.extras
+try:
+    import psycopg2.extras
+    RealDictCursor = psycopg2.extras.RealDictCursor
+except ImportError:
+    RealDictCursor = "RealDictCursor"
+
 from backend.database.db_engine import get_connection
 from backend.observability.logger import setup_logger, sys_logger
 
@@ -17,7 +22,7 @@ def enrich_main_contract_stats(df_main: pd.DataFrame) -> pd.DataFrame:
         params = tuple(biz_codes)
         placeholders = ', '.join(['%s'] * len(biz_codes))
 
-        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur = conn.cursor(cursor_factory=RealDictCursor)
 
         sql_inv = f"""
             SELECT main_contract_code as biz_code, SUM(invoice_amount) as total_invoiced
@@ -69,7 +74,7 @@ def enrich_sub_contract_stats(df_sub: pd.DataFrame) -> pd.DataFrame:
         df_sub['actual_main_code'] = df_sub['actual_main_code'].astype(str).str.strip()
         sub_codes = df_sub['biz_code'].tolist()
         
-        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur = conn.cursor(cursor_factory=RealDictCursor)
         placeholders = ', '.join(['%s'] * len(sub_codes))
         params = tuple(sub_codes)
 
@@ -162,7 +167,7 @@ def validate_sub_payment_risk(sub_biz_code: str, apply_amount: float, conn=None)
     if not is_external_conn:
         conn = get_connection()
     try:
-        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur = conn.cursor(cursor_factory=RealDictCursor)
         
         cur.execute("SELECT * FROM biz_sub_contracts WHERE biz_code = %s AND deleted_at IS NULL FOR UPDATE", (sub_biz_code,))
         sub_raw = cur.fetchone()

@@ -204,3 +204,100 @@ docker exec -it erp_web_v2 /bin/bash
 ### 数据库初始化与热修复
 
 如果系统底层物理表因为配置升级需要新增字段，系统管理员可以通过前端的 **`实验室 (Sandbox) -> 开发者控制台 -> 系统全量配置`** 面板，执行修改配置并触发底层 schema 热同步，无需手动进入数据库执行 `ALTER TABLE` DDL 语句。
+
+---
+
+## 💻 6. Windows 免 Docker 本地轻量部署指南
+
+如果在低配 Windows 机器上无法或不愿安装 Docker/WSL2，可以使用以下本地部署方案（支持 SQLite 或绿色免安装版 PostgreSQL）。
+
+### 选项 A：使用 SQLite 部署（最简便，适合单机/测试）
+1. 在项目目录下创建或编辑 `.env` 文件，开启 SQLite 模式：
+   ```env
+   DB_TYPE=sqlite
+   SQLITE_DB_PATH=data/erp_sqlite.db
+   ```
+2. 直接运行 Streamlit（系统在启动时检测到 SQLite 会自动在 `data/` 目录下创建数据库并初始化表结构）：
+   ```powershell
+   python -m streamlit run streamlit_lab/app.py
+   ```
+
+### 选项 B：使用绿色版 PostgreSQL 部署（适合局域网共享且免 Docker）
+对于需要多用户共享，但宿主机无法使用 Docker 的 Windows 环境，可以按以下步骤手动配置绿色版 PostgreSQL 服务：
+
+1. **安装 C++ 运行库**：
+   在微软官网下载并安装最新的 [Visual C++ Redistributable x64 运行库](https://aka.ms/vs/17/release/vc_redist.x64.exe)。
+
+2. **下载免安装版二进制包**：
+   前往 [PostgreSQL 官网 Windows 页面](https://www.enterprisedb.com/download-postgresql-binaries) 下载对应的 ZIP 二进制压缩包（建议 PostgreSQL 14 或 15），解压到本地目录（例如 `D:\postgresql`）。
+
+3. **手动初始化数据库**：
+   在解压后的 `D:\postgresql\bin` 目录下以 PowerShell 终端运行（指定超级用户为 `postgres`，密码采用交互式输入）：
+   ```powershell
+   # 1. 创建用于存放数据的文件夹
+   mkdir D:\postgresql\data
+
+   # 2. 初始化数据库 (密码使用交互输入，安全性采用 scram-sha-256)
+   .\initdb.exe -D D:\postgresql\data -U postgres -W -A scram-sha-256
+   ```
+
+4. **前台启动测试**：
+   在 `D:\postgresql\bin` 目录中运行：
+   ```powershell
+   .\pg_ctl.exe -D D:\postgresql\data start
+   ```
+
+5. **配置项目连接**：
+   修改项目根目录下的 `.env` 文件，配置为连接本地的 PostgreSQL：
+   ```env
+   DB_TYPE=postgresql
+   DB_HOST=localhost
+   DB_PORT=5432  # 绿色版默认端口，若冲突可在 postgresql.conf 中修改
+   DB_USER=postgres
+   DB_PASS=您刚才初始化时设置的密码
+   DB_NAME=postgres  # 或者先创建您专属的数据库
+   ```
+
+6. **关闭/停止数据库服务**：
+   在 `D:\postgresql\bin` 目录中运行：
+   ```powershell
+   .\pg_ctl.exe -D D:\postgresql\data stop -m fast
+   ```
+
+---
+
+### 💡 附：Python 依赖离线包 (Wheel) 制作与安装指南
+
+在无网络连接的离线机器上部署时，您无法直接从 PyPI 在线下载安装 Python 依赖。建议采用离线 Wheel 包统一管理和交付方案。
+
+#### 1. 统一管理目录
+在项目根目录下新建一个名为 `wheels` 的文件夹，用于统一存放所有的 `.whl` 文件：
+```powershell
+mkdir wheels
+```
+请将您在本地成功编译的 `llama_cpp_python-0.3.31-cp311-cp311-win_amd64.whl` 以及其他特殊依赖包（如 `psycopg2` 等）统一放置在该目录下。
+
+> [!IMPORTANT]
+> **关于 `llama-cpp-python` 离线包文件名的致命注意事项**：
+> C++ 原生编译生成的 Wheel 文件（如 `llama-cpp-python`）**严禁手动重命名为 `py3-none-win_amd64.whl`**！
+> * 原因是 `py3-none`（ABI 独立）与特定平台的 `win_amd64`（需要特定 ABI）在 Python 规范中属于**非法冲突标签**。
+> * `pip` 和 `uv` 在解析时会因为检测到非法兼容标签而**直接忽略该本地 Wheel 包**，进而退化去联网或者就地编译源码（显示 `Building llama-cpp-python...` 导致极慢或报错）。
+> * **正确命名规则**：如果是基于 Python 3.11 编译的，请保持生成时的原始文件名（例如 `llama_cpp_python-0.3.31-cp311-cp311-win_amd64.whl`）。如果是其他 Python 版本，须与文件名中 `cpXX` 标签严格对应。
+
+#### 2. 在联网环境下载全部依赖包 (制作离线包)
+在一台与目标离线机器操作系统版本、Python 版本（如 Python 3.11 64位）一致的**联网开发机**上，进入项目根目录并运行以下命令，下载所有第三方依赖的二进制 `.whl` 文件到 `wheels` 目录中：
+```powershell
+# 下载所有依赖的 wheel 包
+pip download -d wheels -r requirements.txt
+```
+*(如果您安装了 `uv`，也可以运行：`uv pip download -r requirements.txt --output-dir wheels`)*
+
+#### 3. 离线一键安装
+将整个项目文件夹（包含已塞满 `.whl` 文件的 `wheels` 目录）打包拷贝至目标离线 Windows 机器。在离线机器的项目根目录下打开终端，运行以下命令即可 100% 离线、免编译一键完成全部依赖的安装：
+```powershell
+# --no-index 强制屏蔽网络，--find-links 指定本地依赖包目录
+pip install --no-index --find-links=wheels -r requirements.txt
+```
+*(如果目标机上使用 `uv` 虚拟环境，则运行：`uv pip install --no-index --find-links=wheels -r requirements.txt`)*
+
+通过该方式，离线部署时将完全不依赖网络，也不会在离线机器上因为缺少编译环境而报错。

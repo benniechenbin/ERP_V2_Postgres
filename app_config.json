@@ -25,6 +25,10 @@
                     "label": "合同归档日期",
                     "type": "date"
                 },
+                "sign_date": {
+                    "label": "签约日期",
+                    "type": "date"
+                },
                 "contract_status": {
                     "label": "合同状态",
                     "type": "text"
@@ -231,6 +235,10 @@
                 ],
                 "est_sign_date": [
                     "预计签约时间"
+                ],
+                "sign_date": [
+                    "签约日期",
+                    "签订日期"
                 ],
                 "est_invoice_this_year": [
                     "当年预计开票金额"

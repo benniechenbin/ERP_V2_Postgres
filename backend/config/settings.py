@@ -34,12 +34,21 @@ class Settings(BaseSettings):
     OLLAMA_MODEL: str = Field(default="qwen2:7b")
 
     # ================= 5. 数据库配置 (从 .env.example 补全) =================
+    DB_TYPE: Literal["postgresql", "sqlite"] = Field(
+        default="postgresql",
+        description="数据库类型"
+    )
+    SQLITE_DB_PATH: str = Field(
+        default="data/erp_sqlite.db",
+        description="SQLite 数据库文件路径"
+    )
     # Pydantic 会自动把字符串 "localhost" 转为 str，把 "5432" 转为 int
     DB_HOST: str = Field(default="localhost")
     DB_PORT: int = Field(default=5435) 
     DB_USER: str = Field(default="erp_admin")
     DB_PASS: str = Field(default="admin")
     DB_NAME: str = Field(default="erp_core_db")
+
 
     # Pydantic V2 标准配置
     model_config = SettingsConfigDict(
