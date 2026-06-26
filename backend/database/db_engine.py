@@ -13,23 +13,21 @@ except ImportError:
 import re
 import pandas as pd
 from datetime import datetime
-from pathlib import Path
 from sqlalchemy import create_engine, event
 from backend.observability.logger import setup_logger, sys_logger 
-from backend.config.settings import settings
+from backend.config.settings import BACKUP_DIR, PROJECT_ROOT, UPLOAD_DIR, settings
 
 # ==========================================
 # 1. 路径配置 (仅用于附件 UPLOAD)
 # ==========================================
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-UPLOAD_DIR = BASE_DIR / "data" / "uploads"
+BASE_DIR = PROJECT_ROOT  # 兼容旧代码中的命名
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 # ==========================================
 # 2. 数据库连接配置
 # ==========================================
 if settings.DB_TYPE == "sqlite":
-    db_path = BASE_DIR / settings.SQLITE_DB_PATH
+    db_path = settings.sqlite_db_file
     db_path.parent.mkdir(parents=True, exist_ok=True)
     DATABASE_URL = f"sqlite:///{db_path}"
     sql_engine = create_engine(DATABASE_URL)
@@ -223,7 +221,7 @@ def get_readonly_connection(db_name=None):
 def get_current_db_name():
     """返回当前连接的库名"""
     if settings.DB_TYPE == "sqlite":
-        return Path(settings.SQLITE_DB_PATH).name
+        return settings.sqlite_db_file.name
     return settings.DB_NAME
 
 def execute_raw_sql(sql, params=None):
@@ -256,10 +254,10 @@ def backup_db():
     if settings.DB_TYPE == "sqlite":
         try:
             import shutil
-            db_path = BASE_DIR / settings.SQLITE_DB_PATH
+            db_path = settings.sqlite_db_file
             if not db_path.exists():
                 return False, "数据库文件不存在，无法备份"
-            backup_dir = BASE_DIR / "data" / "backups"
+            backup_dir = BACKUP_DIR
             backup_dir.mkdir(parents=True, exist_ok=True)
             backup_name = f"sqlite_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
             backup_path = backup_dir / backup_name

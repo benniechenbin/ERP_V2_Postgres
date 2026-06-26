@@ -4,8 +4,26 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-ENV_PATH = BASE_DIR / ".env"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+BASE_DIR = PROJECT_ROOT  # 兼容旧代码中的命名
+ENV_PATH = PROJECT_ROOT / ".env"
+DATA_DIR = PROJECT_ROOT / "data"
+UPLOAD_DIR = DATA_DIR / "uploads"
+BACKUP_DIR = DATA_DIR / "backups"
+LOG_DIR = PROJECT_ROOT / "logs"
+MODELS_DIR = PROJECT_ROOT / "backend" / "models"
+HOST_DATA_DIR = PROJECT_ROOT / "host_data"
+EXPERIMENTS_DIR = HOST_DATA_DIR / "experiments"
+APP_CONFIG_FILE = PROJECT_ROOT / "app_config.json"
+
+
+def resolve_project_path(path_value: str | Path) -> Path:
+    """将项目相对路径解析为绝对路径，绝对路径保持不变。"""
+    path = Path(path_value).expanduser()
+    if path.is_absolute():
+        return path
+    return PROJECT_ROOT / path
+
 
 class Settings(BaseSettings):
     """
@@ -49,6 +67,10 @@ class Settings(BaseSettings):
     DB_PASS: str = Field(default="admin")
     DB_NAME: str = Field(default="erp_core_db")
 
+    @property
+    def sqlite_db_file(self) -> Path:
+        """当前 SQLite 数据库文件的绝对路径。"""
+        return resolve_project_path(self.SQLITE_DB_PATH)
 
     # Pydantic V2 标准配置
     model_config = SettingsConfigDict(
@@ -59,3 +81,11 @@ class Settings(BaseSettings):
 
 # 在别的文件中直接 from backend.config.setting import settings 即可使用
 settings = Settings()
+
+# ================= 加上这几行 =================
+import os
+print("👉 [DEBUG] 期望读取的 .env 路径:", ENV_PATH)
+print("👉 [DEBUG] 文件真实存在吗?", ENV_PATH.exists())
+print("👉 [DEBUG] 最终生效的 DB_TYPE:", settings.DB_TYPE)
+print("👉 [DEBUG] Windows 系统层面是否有 DB_TYPE?", os.environ.get("DB_TYPE"))
+# ==============================================

@@ -1,7 +1,21 @@
 import sys
-from pathlib import Path
-from backend.config.settings import settings
+from backend.config.settings import (
+    EXPERIMENTS_DIR,
+    LOG_DIR,
+    MODELS_DIR,
+    UPLOAD_DIR,
+    settings,
+)
 from backend.observability.logger import setup_logger, sys_logger
+
+
+def _describe_database_target() -> str:
+    """生成当前数据库目标的启动日志描述。"""
+    if settings.DB_TYPE == "sqlite":
+        return f"SQLite 文件: {settings.sqlite_db_file}"
+
+    return f"PostgreSQL: {settings.DB_HOST}:{settings.DB_PORT} / {settings.DB_NAME}"
+
 
 @sys_logger.catch
 def init_system():
@@ -9,23 +23,20 @@ def init_system():
     🌌 ERP_V2_Postgres 引擎点火程序
     负责：初始化全局日志、自动创建物理挂载目录、关键环境预检。
     """
-    # 1. 确定项目根目录 (相对于 backend/core/bootstrap.py 向上找两级)
-    project_root = Path(__file__).resolve().parent.parent.parent
-    
-    # 2. 初始化日志系统
-    log_dir = project_root / "logs"
+    # 1. 初始化日志系统
+    log_dir = LOG_DIR
     setup_logger(log_dir=log_dir, log_level="INFO")
 
     sys_logger.info("="*50)
     sys_logger.info("🚀 系统核心引擎正在点火...")   
 
-    # 3. 目录预检：自动创建必要的物理目录 (防止 IO 报错)
+    # 2. 目录预检：自动创建必要的物理目录 (防止 IO 报错)
     # 这里的路径建议从根目录开始拼接，确保在 Docker 和本地都一致
     paths_to_create = [
         log_dir,
-        project_root / "data" / "uploads",           # 附件上传目录
-        project_root / "backend" / "models",         # 本地大模型目录
-        project_root / "host_data" / "experiments",  # 实验数据目录
+        UPLOAD_DIR,        # 附件上传目录
+        MODELS_DIR,        # 本地大模型目录
+        EXPERIMENTS_DIR,   # 实验数据目录
     ]
     
     for p in paths_to_create:        
@@ -33,15 +44,15 @@ def init_system():
             p.mkdir(parents=True, exist_ok=True)
             sys_logger.debug(f"📁 已创建物理目录: {p}")
 
-    # 4. 环境状态播报 (Fail-Fast 预检)
+    # 3. 环境状态播报 (Fail-Fast 预检)
     try:
         # 播报数据库连接目标
-        sys_logger.info(f"💾 数据库目标: {settings.DB_HOST}:{settings.DB_PORT} / {settings.DB_NAME}")
+        sys_logger.info(f"💾 数据库目标: {_describe_database_target()}")
         
         # 播报 AI 引擎配置
         sys_logger.info(f"💬 AI 引擎模式: {settings.AI_PROVIDER}")
         if settings.AI_PROVIDER == "local_gguf":
-            model_path = project_root / "backend" / "models" / settings.GGUF_MODEL_NAME
+            model_path = MODELS_DIR / settings.GGUF_MODEL_NAME
             if not model_path.exists():
                 sys_logger.warning(f"⚠️ 本地模型文件未找到: {settings.GGUF_MODEL_NAME}")
             else:

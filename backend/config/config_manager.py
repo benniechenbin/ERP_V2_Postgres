@@ -2,13 +2,13 @@
 import os
 import json
 from datetime import datetime
-from pathlib import Path
+from backend.config.settings import APP_CONFIG_FILE, PROJECT_ROOT
 
 # ========================================================
 # 0. 现代化路径配置 
 # ========================================================
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-CONFIG_FILE = BASE_DIR / "app_config.json"
+BASE_DIR = PROJECT_ROOT  # 兼容旧代码中的命名
+CONFIG_FILE = APP_CONFIG_FILE
 
 APP_NAME = "建筑专项管理系统"
 APP_VERSION = "V2.0.0 beta" 

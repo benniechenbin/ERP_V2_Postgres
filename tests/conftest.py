@@ -1,6 +1,5 @@
 import os
 import pytest
-from pathlib import Path
 from backend.config.settings import settings
 import backend.database.db_engine as db_engine
 from backend.database.schema import sync_database_schema
@@ -13,7 +12,7 @@ def setup_test_database():
     settings.SQLITE_DB_PATH = "data/test_temp.db"
     
     # 2. 重新初始化 db_engine.py 中的 sql_engine
-    db_path = db_engine.BASE_DIR / settings.SQLITE_DB_PATH
+    db_path = settings.sqlite_db_file
     db_path.parent.mkdir(parents=True, exist_ok=True)
     
     # 清理可能残留的数据库文件以保持干净测试环境

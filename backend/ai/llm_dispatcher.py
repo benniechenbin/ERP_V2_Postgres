@@ -1,15 +1,5 @@
-from pathlib import Path
 from openai import OpenAI
-from backend.config.settings import settings
-
-# ==========================================
-# 🟢 终极路径锚点系统 (防呆设计)
-# ==========================================
-# 1. 找到当前文件 (llm_dispatcher.py) 所在的绝对目录
-CURRENT_DIR = Path(__file__).resolve().parent
-
-# 2. 向上找 2 层，精准定位到项目根目录 ERP_V2_Postgres/
-ROOT_DIR = CURRENT_DIR.parent.parent
+from backend.config.settings import MODELS_DIR, settings
 
 
 class LLMDispatcher:
@@ -43,7 +33,7 @@ class LLMDispatcher:
                 if not model_filename:
                     raise ValueError("使用本地模型，但 .env 中未配置 GGUF_MODEL_NAME")
                     
-                model_path = ROOT_DIR / "backend" / "models" / model_filename
+                model_path = MODELS_DIR / model_filename
                 
                 sys_logger.info(f"⏳ 正在启动内置 AI 引擎，加载模型: {model_path}...")
                 self.client = Llama(
