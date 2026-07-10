@@ -3,6 +3,8 @@ import os
 import json
 from datetime import datetime
 from backend.config.settings import APP_CONFIG_FILE, PROJECT_ROOT
+from backend.observability.logger import sys_logger
+
 
 # ========================================================
 # 0. 现代化路径配置 

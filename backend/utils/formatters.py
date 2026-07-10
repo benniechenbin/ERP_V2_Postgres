@@ -66,11 +66,11 @@ def format_wan(amount):
         return "0 万"
 
 def safe_float(value):
-    """[终极版] 安全地将各种奇葩字符串转为浮点数。"""
+    """[终极版] 安全地将各种奇葩字符串转为浮点数，并对二进制浮点数四舍五入规范化精度。"""
     if pd.isna(value) or value is None or str(value).strip() == '':
         return 0.0
     if isinstance(value, (int, float)):
-        return float(value)
+        return round(float(value), 4)
     s = str(value).strip()
     is_negative = False
     if s.startswith('(') and s.endswith(')'):
@@ -87,7 +87,7 @@ def safe_float(value):
     match = re.search(r'-?\d+\.?\d*', s)
     if match:
         final_val = float(match.group()) * unit
-        return -final_val if is_negative else final_val
+        return round(-final_val if is_negative else final_val, 4)
     else:
         return 0.0
 

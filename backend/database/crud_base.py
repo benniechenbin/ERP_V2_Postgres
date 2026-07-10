@@ -138,7 +138,7 @@ def fetch_dynamic_records(model_name: str, keyword: str = "") -> pd.DataFrame:
     field_meta = model_config.get("field_meta", {})
     
     if not table_name:
-        sys_logger.wanning(f"🚨 模型 {model_name} 配置不存在！")
+        sys_logger.warning(f"🚨 模型 {model_name} 配置不存在！")
         return pd.DataFrame()
         
     conn = None
