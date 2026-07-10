@@ -6,6 +6,7 @@ import os
 import json
 from backend import database as db
 from backend.config import config_manager
+from backend.config.settings import settings
 
 def is_debug_mode():
     return st.session_state.get('debug_mode', False)
@@ -24,9 +25,8 @@ def render_debug_sidebar():
 def execute_debug_logic(current_db_path=None):
     if not is_debug_mode(): return
 
-    actual_db_path = current_db_path
-    if actual_db_path is None:
-        actual_db_path = db.get_connection()
+    # 优化：不再在此处直接获取/持有数据库连接，避免在页面刷新时产生连接泄漏
+    # 物理数据库名称会在 SQL 终端 Tab 中通过 db.get_current_db_name() 动态获取并展示
     
     st.markdown("---")
     st.markdown("### 🐞 开发者控制台 (Pro)")
@@ -95,19 +95,30 @@ def execute_debug_logic(current_db_path=None):
     # Tab 2: SQL 终端 (修复版)
     # =========================================================
     with tabs[1]:
-        st.write(f"连接库：`{current_db_path}`")
+        db_name = db.get_current_db_name()
+        st.write(f"连接库：`{db_name}`")
         st.subheader("💻 SQL 执行终端")
         
         # 1. 获取当前所有表名
         all_tables = db.get_all_data_tables()
         default_table = all_tables[0] if all_tables else "data_Project2026"
 
-        # 2. 定义常用 SQL 模板
+        # 2. 定义常用 SQL 模板 (适配 SQLite / PostgreSQL)
+        is_sqlite = settings.DB_TYPE == "sqlite"
+        
         SQL_TEMPLATES = {
             "--- 请选择预设模板 (可选) ---": "",
-            "🔍 查看所有数据表名": "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';",
+            "🔍 查看所有数据表名": (
+                "SELECT name AS table_name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';"
+                if is_sqlite else
+                "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';"
+            ),
             "👀 查看前 10 条数据": f'SELECT * FROM "{default_table}" LIMIT 10;',
-            "📑 查看表结构 (列定义)": f"SELECT column_name, data_type, character_maximum_length, column_default FROM information_schema.columns WHERE table_name = '{default_table}';",
+            "📑 查看表结构 (列定义)": (
+                f"PRAGMA table_info(\"{default_table}\");"
+                if is_sqlite else
+                f"SELECT column_name, data_type, character_maximum_length, column_default FROM information_schema.columns WHERE table_name = '{default_table}';"
+            ),
             "➕ [热修] 增加一个小数列 (用于金额/系数)": f'ALTER TABLE "{default_table}" ADD COLUMN new_column_name NUMERIC(15,2) DEFAULT 0.00;',
             "➕ [热修] 增加一个文本列 (用于备注)": f'ALTER TABLE "{default_table}" ADD COLUMN new_text_col VARCHAR(255);',
             "➕ [热修] 增加一个整数列 (用于状态标记)": f'ALTER TABLE "{default_table}" ADD COLUMN is_flag INTEGER DEFAULT 0;',
