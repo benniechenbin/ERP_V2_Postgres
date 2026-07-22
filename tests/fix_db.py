@@ -1,6 +1,7 @@
 # 文件位置: ERP_V2_PRO/fix_db.py
 import sys
 from pathlib import Path
+
 ROOT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT_DIR))
 
@@ -12,12 +13,12 @@ cur = conn.cursor()
 
 print("🧨 正在暴力拆除所有 V1.0 时代的残留表...")
 cur.execute("""
-    DROP TABLE IF EXISTS 
-    biz_main_contracts, 
-    biz_sub_contracts, 
+    DROP TABLE IF EXISTS
+    biz_main_contracts,
+    biz_sub_contracts,
     biz_enterprises,
-    biz_collections, 
-    biz_outbound_payments, 
+    biz_collections,
+    biz_outbound_payments,
     biz_invoices,
     sys_audit_logs CASCADE;
 """)

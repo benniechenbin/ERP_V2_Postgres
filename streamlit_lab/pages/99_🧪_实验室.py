@@ -41,10 +41,8 @@ if not EXP_DIR_PATH.exists():
 # 扫描文件夹下的所有 .py 文件
 external_files = []
 try:
-    
     external_files = [
-        f[:-3] for f in os.listdir(EXP_DIR_PATH) 
-        if f.startswith("ex") and f.endswith(".py") and f != "__init__.py"
+        f[:-3] for f in os.listdir(EXP_DIR_PATH) if f.startswith("ex") and f.endswith(".py") and f != "__init__.py"
     ]
     external_files.sort()
 except Exception as e:
@@ -61,10 +59,11 @@ with st.sidebar:
     st.header("🎛️ 实验室控制台")
     selected_exp = st.radio("选择挂载的模块", options=menu_options)
     st.divider()
-    
+
     # [B] 选择数据源 (宿主负责，供给外部脚本使用)
     all_tables = db.get_all_data_tables()
     target_table = st.selectbox("🧪 挂载实验数据表", all_tables) if all_tables else None
+
 
 # ==========================================
 # 🟢 内置功能：实验室主页 (仪表盘)
@@ -90,9 +89,9 @@ def run_lab_dashboard(conn, all_tables_list, plugins):
                 # 快速统计表行数
                 count = pd.read_sql(f'SELECT COUNT(*) FROM "{tbl}"', conn).iloc[0, 0]
                 table_stats.append({"数据表名称": tbl, "记录行数": count, "状态": "✅ 正常"})
-            except Exception as e:
-                table_stats.append({"数据表名称": tbl, "记录行数": "-", "状态": f"❌ 读取失败"})
-                
+            except Exception:
+                table_stats.append({"数据表名称": tbl, "记录行数": "-", "状态": "❌ 读取失败"})
+
         st.dataframe(pd.DataFrame(table_stats), width="stretch", hide_index=True)
     else:
         st.info("当前架构下暂无业务数据表。")
@@ -103,7 +102,7 @@ def run_lab_dashboard(conn, all_tables_list, plugins):
         1. 在项目根目录的 `experiments/` 文件夹下新建一个 Python 文件，例如 `test_api.py`。
         2. 在文件中必须定义一个 `run(df, conn)` 函数作为入口。
         3. 刷新本页面，左侧边栏就会自动识别到该卡带。
-        
+
         **代码模板：**
         ```python
         import streamlit as st
@@ -116,11 +115,13 @@ def run_lab_dashboard(conn, all_tables_list, plugins):
         ```
         """)
 
+
 # ==========================================
 # 5. 宿主加载器 (Host Loader)
 # ==========================================
 conn = db.get_readonly_connection()
-if not conn: st.stop()
+if not conn:
+    st.stop()
 
 try:
     if selected_exp == BUILTIN_TOOL_NAME:
@@ -129,10 +130,10 @@ try:
         if target_table:
             # 1. 预加载数据
             df = pd.read_sql(f'SELECT * FROM "{target_table}"', conn)
-            
+
             # 2. 🟢 核心修复：使用物理路径加载插件，不再使用 importlib.import_module
             file_path = EXP_DIR_PATH / f"{selected_exp}.py"
-            
+
             # 创建加载规范 (Spec)
             spec = importlib.util.spec_from_file_location(selected_exp, str(file_path))
             if spec and spec.loader:
@@ -140,8 +141,8 @@ try:
                 # 将模块注入系统缓存，以便支持热更新
                 sys.modules[selected_exp] = module
                 spec.loader.exec_module(module)
-                
-                if hasattr(module, 'run'):
+
+                if hasattr(module, "run"):
                     st.divider()
                     st.caption(f"🚀 正在运行卡带: `{selected_exp}.py` (只读模式)")
                     module.run(df, conn)

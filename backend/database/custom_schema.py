@@ -1,13 +1,14 @@
 # 文件位置: backend/database/custom_schema.py
 # 🟢 作用：存放当前项目所有专属的、带物理外键的底层流水表/静态表
 
+
 def execute_custom_static_tables(cursor):
     """在此处编写所有不需要 JSON 驱动的底层表 SQL"""
     # =========================================================
     # 🏗️ 核心业务表 1：收款计划表 (契约层)
     # 作用：记录合同约定的里程碑节点，用于预测未来的现金流和生成催款计划。
     # =========================================================
-    cursor.execute('''
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS biz_payment_plans (
             id SERIAL PRIMARY KEY,
             biz_code VARCHAR(100) UNIQUE NOT NULL,
@@ -23,13 +24,13 @@ def execute_custom_static_tables(cursor):
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-    ''')
+    """)
 
     # =========================================================
     # 🏗️ 核心业务表 2：发票记录表 (财务层)
     # 作用：记录税务义务的履行，是计算“财务应收账款”和“未开票收入”的核心。
     # =========================================================
-    cursor.execute('''
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS biz_invoices (
             id SERIAL PRIMARY KEY,
             biz_code VARCHAR(100) UNIQUE NOT NULL,
@@ -45,13 +46,13 @@ def execute_custom_static_tables(cursor):
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-    ''')
+    """)
 
     # =========================================================
     # 🏗️ 核心业务表 3：资金流水表 (执行层)
     # 作用：记录银行实际进出的真金白银。支持多笔流水核销一张发票，或一笔流水对应多个合同。
     # =========================================================
-    cursor.execute('''
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS biz_collections (
             id SERIAL PRIMARY KEY,
             biz_code VARCHAR(100) UNIQUE NOT NULL,
@@ -67,13 +68,13 @@ def execute_custom_static_tables(cursor):
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-    ''')
+    """)
 
     # =========================================================
     # 🏗️ 核心业务表 4：变更协议表 (演变层)
     # 作用：记录合同生命周期内的增减项，动态推演“最新合同额”。
     # =========================================================
-    cursor.execute('''
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS sys_change_orders (
             id SERIAL PRIMARY KEY,
             biz_code VARCHAR(100) NOT NULL,             -- 关联合同编号
@@ -84,13 +85,13 @@ def execute_custom_static_tables(cursor):
             change_reason TEXT,                         -- 变更原因说明
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-    ''')
+    """)
 
     # =========================================================
     # 🏗️ 核心业务表 5：质保/保证金表 (风险层)
     # 作用：管理被扣留的资金池，预警到期未退的保证金。
     # =========================================================
-    cursor.execute('''
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS sys_retentions (
             id SERIAL PRIMARY KEY,
             biz_code VARCHAR(100) NOT NULL,             -- 关联合同编号
@@ -101,12 +102,12 @@ def execute_custom_static_tables(cursor):
             status VARCHAR(50) DEFAULT '未解冻',         -- 状态 (未解冻 / 已到期 / 已全额返还 / 已扣除抵扣)
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-    ''')
-     # =========================================================
-    # 🏗️ 核心业务表 6：对外付款流水表 
+    """)
+    # =========================================================
+    # 🏗️ 核心业务表 6：对外付款流水表
     # 作用：记录分包合合同的付款流水。
     # =========================================================
-    cursor.execute('''
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS biz_outbound_payments (
             id SERIAL PRIMARY KEY,
             biz_code VARCHAR(100) UNIQUE NOT NULL,
@@ -120,12 +121,12 @@ def execute_custom_static_tables(cursor):
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-    ''')
+    """)
     # =========================================================
     # 🏗️ 核心业务表 7：分包进项发票表 (分包侧 - 纯票据流入)
     # 🟢 新增：独立管理分包商开过来的发票，用于防范“欠票风险”
     # =========================================================
-    cursor.execute('''
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS biz_sub_invoices (
             id SERIAL PRIMARY KEY,
             biz_code VARCHAR(100) UNIQUE NOT NULL,
@@ -140,12 +141,11 @@ def execute_custom_static_tables(cursor):
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-    ''')
-   # ==========================================
+    """)
+    # ==========================================
     # 🚀 [第三战区] 物理性能加速 (高频查询索引)
     # ==========================================
-    
-    
+
     # 主合同侧索引
     cursor.execute('CREATE INDEX IF NOT EXISTS "idx_plan_main" ON biz_payment_plans(main_contract_code);')
     cursor.execute('CREATE INDEX IF NOT EXISTS "idx_inv_main" ON biz_invoices(main_contract_code);')

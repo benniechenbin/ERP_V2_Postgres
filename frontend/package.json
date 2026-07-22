@@ -1,0 +1,11 @@
+{
+  "name": "erp-v2-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ERP V2 预留独立前端界面层",
+  "scripts": {
+    "test": "echo \"[frontend] unit tests skipped: reserved frontend interface\"",
+    "lint": "echo \"[frontend] linting skipped: reserved frontend interface\"",
+    "type-check": "echo \"[frontend] type-check skipped: reserved frontend interface\""
+  }
+}

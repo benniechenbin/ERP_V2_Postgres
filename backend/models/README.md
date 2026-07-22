@@ -6,7 +6,7 @@
 ## 📥 下载指引
 
 1. **模型名称**: DeepSeek-R1-Distill-Qwen-7B-Q4_K_M.gguf
-2. **下载地址** (国内满速直链): 
+2. **下载地址** (国内满速直链):
    `https://hf-mirror.com/unsloth/DeepSeek-R1-Distill-Qwen-7B-GGUF/resolve/main/DeepSeek-R1-Distill-Qwen-7B-Q4_K_M.gguf`
 3. **摆放位置**: 下载完成后，将 `.gguf` 文件直接放在当前目录下。
 

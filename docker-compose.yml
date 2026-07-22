@@ -27,24 +27,24 @@ services:
     restart: always
     depends_on:
       - db
- 
-    env_file: 
-      - .env  
+
+    env_file:
+      - .env
 
     environment:
       - DB_HOST=db        # 容器间通过服务名通信
       - DB_PORT=5432      # 🟢 必须是 5432，这是 PG 的内部端口
       - DB_USER=${DB_USER}
       - DB_PASS=${DB_PASS}
-      - DB_NAME=${DB_NAME}      
+      - DB_NAME=${DB_NAME}
       - TZ=Asia/Shanghai            # 强制容器使用北京时间
       - PYTHONUNBUFFERED=1          # 确保 Python 日志能实时输出到终端控制台
-      
+
     ports:
       - "8501:8501"
     volumes:
       # 挂载 1：业务附件（合同扫描件等），确保客户上传的文件存在宿主机的 host_data 里
-      - ./host_data/uploads:/app/data/uploads 
+      - ./host_data/uploads:/app/data/uploads
       # 挂载 2：本地大模型（核心修复）
       - ./backend/models:/app/backend/models
       # 挂载 3：实验页面（Streamlit 实验结果）

@@ -42,7 +42,7 @@
 mkdir -p /opt/erp_v2
 cd /opt/erp_v2
 # 解压系统配置与挂载目录包
-tar -xvf erp_v2_release.tar 
+tar -xvf erp_v2_release.tar
 
 ```
 

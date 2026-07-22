@@ -26,26 +26,26 @@ venv/
 tests/
 test.docx
 test_ai_parsing.py
-experiments/                  
-streamlit_lab/experiments/    
+experiments/
+streamlit_lab/experiments/
 streamlit_lab/pages/experiments/
 
 # ==========================================
 # 4. 本地数据、临时文件与打包产物
 # ==========================================
 data/uploads/*
-backend/models/* # 
+backend/models/* #
 *.log
 *.sqlite
-*.tar                         
+*.tar
 *.zip
 *.gz
 
 # ==========================================
-# 5. 敏感信息 
+# 5. 敏感信息
 # ==========================================
 # 生产环境通常通过 docker-compose.yml 注入环境变量，所以把本地 .env 排除
-.env 
+.env
 
 # ==========================================
 # 6. IDE 与系统垃圾

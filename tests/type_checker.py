@@ -10,8 +10,9 @@ PATTERNS = {
     "循环变量": r"for\s+({})\s+in",
     "函数参数": r"def\s+\w+\s*\(.*?\b({})\b.*?\):",
     "通配符导入": r"from\s+\S+\s+import\s+\*",
-    "isinstance误用": r"isinstance\s*\(\s*[^,]+,\s*['\"]", # 检查是否写成了 isinstance(x, "str")
+    "isinstance误用": r"isinstance\s*\(\s*[^,]+,\s*['\"]",  # 检查是否写成了 isinstance(x, "str")
 }
+
 
 def scan_project(root_dir):
     print(f"🚀 开始全项目扫描: {root_dir}")
@@ -31,13 +32,14 @@ def scan_project(root_dir):
                         lines = f.readlines()
                         for i, line in enumerate(lines):
                             # 过滤掉注释行
-                            if line.strip().startswith("#"): continue
-                            
+                            if line.strip().startswith("#"):
+                                continue
+
                             for label, pattern in PATTERNS.items():
                                 # 填充关键字到正则中
                                 final_pattern = pattern.format("|".join(KEYWORDS))
                                 matches = re.findall(final_pattern, line)
-                                
+
                                 if matches:
                                     # 处理 findall 结果
                                     target = matches[0] if isinstance(matches[0], str) else ""
@@ -53,6 +55,7 @@ def scan_project(root_dir):
         print("✅ 扫描完毕！未发现明显的关键字污染风险。")
     else:
         print(f"💡 扫描完毕，共发现 {found_count} 处潜在风险。请重点检查上述位置。")
+
 
 if __name__ == "__main__":
     # 获取当前目录作为扫描起点

@@ -1,0 +1,39 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+repos:
+  - repo: local
+    hooks:
+      - id: generate-env-example
+        name: Generate .env.example
+        entry: uv run python scripts/generate_env_example.py
+        language: system
+        pass_filenames: false
+        files: ^(backend/config/settings\.py|scripts/generate_env_example\.py|\.env\.example)$
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-toml
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: detect-private-key
+      - id: check-merge-conflict
+        args: [--assume-in-merge]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.1
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: uv run mypy backend
+        language: system
+        pass_filenames: false
+        always_run: true
