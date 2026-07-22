@@ -14,7 +14,7 @@ from backend.observability.logger import sys_logger
 def upsert_dynamic_record(
     model_name: str,
     data_dict: dict,
-    record_id: int = None,
+    record_id: int | None = None,
     operator_id: int = 0,
     operator_name: str = "System",
 ):
