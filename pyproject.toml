@@ -13,7 +13,7 @@ dependencies = [
     "plotly",
     "watchdog",
     "psycopg2-binary==2.9.9",
-    "sqlalchemy==2.0.48",
+    "sqlalchemy==2.0.51",
     "tabulate",
     "werkzeug",
     "PyPDF2",
