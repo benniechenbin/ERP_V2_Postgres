@@ -10,6 +10,13 @@ repos:
         pass_filenames: false
         files: ^(backend/config/settings\.py|scripts/generate_env_example\.py|\.env\.example)$
 
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: v0.23.1
+    hooks:
+      - id: markdownlint-cli2
+        args:
+          - --fix
+
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
