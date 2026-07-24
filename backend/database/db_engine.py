@@ -1,4 +1,5 @@
 import os
+import sqlite3
 import sys
 
 if sys.platform == "win32":
@@ -12,11 +13,19 @@ except ImportError:
     RealDictCursor = "RealDictCursor"
 
 import re
-import pandas as pd
 from datetime import datetime
+
+import pandas as pd
 from sqlalchemy import create_engine, event
+from sqlalchemy.exc import SQLAlchemyError
+
+from backend.config.settings import APP_TIMEZONE, BACKUP_DIR, PROJECT_ROOT, UPLOAD_DIR, settings
 from backend.observability.logger import sys_logger
-from backend.config.settings import BACKUP_DIR, PROJECT_ROOT, UPLOAD_DIR, settings
+
+DATABASE_EXCEPTIONS: tuple[type[BaseException], ...] = (sqlite3.Error, SQLAlchemyError, pd.errors.DatabaseError)
+if psycopg2 is not None:
+    DATABASE_EXCEPTIONS += (psycopg2.Error,)
+DATA_ACCESS_EXCEPTIONS = DATABASE_EXCEPTIONS + (AttributeError, IndexError, KeyError, TypeError, ValueError)
 
 # ==========================================
 # 1. 路径配置 (仅用于附件 UPLOAD)
@@ -131,7 +140,7 @@ class SQLiteCursorWrapper:
         if self.as_dict:
             keys = [col[0] for col in self._cursor.description] if self._cursor.description else []
             if keys:
-                return dict(zip(keys, row))
+                return dict(zip(keys, row, strict=False))
         return row
 
     def fetchall(self):
@@ -141,7 +150,7 @@ class SQLiteCursorWrapper:
         if self.as_dict:
             keys = [col[0] for col in self._cursor.description] if self._cursor.description else []
             if keys:
-                return [dict(zip(keys, rows_item)) for rows_item in rows]
+                return [dict(zip(keys, rows_item, strict=False)) for rows_item in rows]
         return rows
 
     def __iter__(self):
@@ -152,7 +161,7 @@ class SQLiteCursorWrapper:
         if self.as_dict:
             keys = [col[0] for col in self._cursor.description] if self._cursor.description else []
             if keys:
-                return dict(zip(keys, row))
+                return dict(zip(keys, row, strict=False))
         return row
 
     @property
@@ -216,9 +225,9 @@ def get_connection():
         if settings.DB_TYPE == "sqlite":
             return SQLiteConnectionWrapper(conn)
         return conn
-    except Exception as e:
+    except SQLAlchemyError as e:
         sys_logger.exception(f"🚨 数据库连接获取失败: {e}", exc_info=True)
-        raise e
+        raise
 
 
 def get_readonly_connection(db_name=None):
@@ -252,7 +261,7 @@ def execute_raw_sql(sql, params=None):
 
         conn.commit()
         return True, f"影响行数: {cur.rowcount}"
-    except Exception as e:
+    except DATA_ACCESS_EXCEPTIONS as e:
         if conn:
             conn.rollback()
         return False, str(e)
@@ -272,11 +281,11 @@ def backup_db():
                 return False, "数据库文件不存在，无法备份"
             backup_dir = BACKUP_DIR
             backup_dir.mkdir(parents=True, exist_ok=True)
-            backup_name = f"sqlite_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
+            backup_name = f"sqlite_backup_{datetime.now(APP_TIMEZONE).strftime('%Y%m%d_%H%M%S')}.db"
             backup_path = backup_dir / backup_name
             shutil.copy2(db_path, backup_path)
             return True, f"SQLite 数据库备份成功: {backup_path.name}"
-        except Exception as e:
+        except OSError as e:
             return False, f"SQLite 备份失败: {e}"
     else:
         return False, "请通过 Docker 使用 pg_dump 进行物理备份"
@@ -298,10 +307,10 @@ def db_health_report():
                 cur.execute(f'SELECT count(*) FROM "{t}"')
                 row = cur.fetchone()
                 # 如果 row 是 dict 包装的
-                val = row[0] if not isinstance(row, dict) else list(row.values())[0]
+                val = row[0] if not isinstance(row, dict) else next(iter(row.values()))
                 report["stats"][t] = val
-            except Exception:
-                pass
+            except DATA_ACCESS_EXCEPTIONS as exc:
+                sys_logger.warning(f"数据健康度扫描跳过表 {t}: {exc}")
         return report
     finally:
         if conn:

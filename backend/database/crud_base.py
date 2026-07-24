@@ -1,14 +1,16 @@
 import json
-import pandas as pd
-from datetime import datetime
 import warnings
+from datetime import datetime
+
+import pandas as pd
 
 from backend.config import config_manager as cfg
-from backend.database.db_engine import get_connection
-from backend.database.schema import get_all_data_tables, get_table_columns
+from backend.config.settings import APP_TIMEZONE
 from backend.core import core_logic  # 用于应用业务公式
-from backend.utils.formatters import normalize_db_value
+from backend.database.db_engine import DATA_ACCESS_EXCEPTIONS, get_connection
+from backend.database.schema import get_all_data_tables, get_table_columns
 from backend.observability.logger import sys_logger
+from backend.utils.formatters import normalize_db_value
 
 
 def upsert_dynamic_record(
@@ -73,12 +75,12 @@ def upsert_dynamic_record(
 
             if old_row:
                 # 把老记录转成字典，并将 extra_props 里的溢出字段也平铺开来
-                old_dict = dict(zip([col[0] for col in cursor.description], old_row))
+                old_dict = dict(zip([col[0] for col in cursor.description], old_row, strict=False))
                 old_extra = old_dict.get("extra_props", {})
                 if isinstance(old_extra, str):
                     try:
                         old_extra = json.loads(old_extra)
-                    except Exception:
+                    except (json.JSONDecodeError, TypeError):
                         old_extra = {}
                 flat_old_data = {**old_dict, **old_extra}
 
@@ -154,7 +156,7 @@ def upsert_dynamic_record(
         conn.commit()
         return True, msg
 
-    except Exception as e:
+    except DATA_ACCESS_EXCEPTIONS as e:
         if conn:
             conn.rollback()
         sys_logger.exception(f"🚨 数据写入失败 [{model_name}]: {e}", exc_info=True)
@@ -212,7 +214,7 @@ def fetch_dynamic_records(model_name: str, keyword: str = "") -> pd.DataFrame:
         df = core_logic.apply_business_formulas(df, model_name)
         return df
 
-    except Exception as e:
+    except DATA_ACCESS_EXCEPTIONS as e:
         # 如果这里报错，测试脚本就会打印这句
         sys_logger.exception(f"🚨 动 态数据读取失败: {e}")
         return pd.DataFrame()
@@ -239,7 +241,7 @@ def delete_dynamic_record(model_name: str, record_id: int):
         cursor.execute(f'DELETE FROM "{table_name}" WHERE id = %s', (record_id,))
         conn.commit()
         return True, "物理删除成功，相关流水已自动级联清理"
-    except Exception as e:
+    except DATA_ACCESS_EXCEPTIONS as e:
         if conn:
             conn.rollback()
         return False, f"删除失败: {e}"
@@ -260,7 +262,7 @@ def check_project_existence(biz_code=None, project_name=None):
             cursor.execute(sql, (biz_code, project_name))
             result = cursor.fetchone()
             if result:
-                found_code, found_name, manager = result
+                found_code, _found_name, manager = result
                 reason = "编号" if found_code == biz_code else "名称"
                 return {
                     "exists": True,
@@ -268,8 +270,8 @@ def check_project_existence(biz_code=None, project_name=None):
                     "msg": f"⛔ 冲突：{reason}已在表 [{table}] 中存在（负责人：{manager}）",
                 }
         return {"exists": False, "msg": "✅ 该项目信息在全库中唯一"}
-    except Exception as e:
-        return {"exists": False, "msg": f"检查失败: {str(e)}"}
+    except DATA_ACCESS_EXCEPTIONS as e:
+        return {"exists": False, "msg": f"检查失败: {e!s}"}
     finally:
         if conn:
             conn.close()
@@ -277,7 +279,7 @@ def check_project_existence(biz_code=None, project_name=None):
 
 def generate_biz_code(table_name, prefix_char="TMP"):
     """自动生成唯一临时编号 (biz_code 版)"""
-    prefix = f"{prefix_char}{datetime.now().strftime('%Y%m%d')}"
+    prefix = f"{prefix_char}{datetime.now(APP_TIMEZONE).strftime('%Y%m%d')}"
     conn = None
     try:
         conn = get_connection()
@@ -297,7 +299,7 @@ def generate_biz_code(table_name, prefix_char="TMP"):
             seq = 1
 
         return f"{prefix}{seq:03d}"
-    except Exception as e:
+    except DATA_ACCESS_EXCEPTIONS as e:
         sys_logger.exception(f"自动编号生成失败: {e}")
         return f"{prefix}999"
     finally:

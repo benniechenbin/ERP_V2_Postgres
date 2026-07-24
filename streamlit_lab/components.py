@@ -1,14 +1,16 @@
 # ==========================================
 # 🎨 Streamlit UI 小组件 (偷懒神器) V3
 # ==========================================
-import streamlit as st
-import pandas as pd
-from datetime import datetime
 import json
-from backend.database.db_engine import get_connection
-from backend.config import config_manager as cfg
+from datetime import datetime
+
+import pandas as pd
+import streamlit as st
+
 from backend.ai.llm_dispatcher import LLMDispatcher
-from backend.config.settings import settings
+from backend.config import config_manager as cfg
+from backend.config.settings import APP_TIMEZONE, settings
+from backend.database.db_engine import DATA_ACCESS_EXCEPTIONS, get_connection
 
 
 def render_smart_widget(
@@ -69,12 +71,12 @@ def render_smart_widget(
 
     elif config_type == "date":
         if pd.isna(val) or val is None or str(val).strip() == "":
-            default_date = datetime.today().date()
+            default_date = datetime.now(APP_TIMEZONE).date()
         else:
             try:
                 default_date = pd.to_datetime(val).date()
-            except Exception:
-                default_date = datetime.today().date()
+            except (TypeError, ValueError):
+                default_date = datetime.now(APP_TIMEZONE).date()
 
         selected_date = st.date_input(label, value=default_date, disabled=is_disabled, key=f"input_{col_name}")
         return str(selected_date)
@@ -194,11 +196,11 @@ def dict_mapping_formatter(mapping_dict: dict):
 def render_dynamic_form(
     model_name: str,
     form_title: str,
-    existing_data: dict = None,
-    hidden_fields: list = None,
-    readonly_fields: list = None,
-    dynamic_options: dict = None,
-    format_funcs: dict = None,
+    existing_data: dict | None = None,
+    hidden_fields: list | None = None,
+    readonly_fields: list | None = None,
+    dynamic_options: dict | None = None,
+    format_funcs: dict | None = None,
 ):
     """
     [宏观组件 2：动态输入表单 - V3 终极版]
@@ -257,7 +259,7 @@ def render_dynamic_form(
     return None
 
 
-def render_audit_timeline(biz_code: str, model_name: str = None):
+def render_audit_timeline(biz_code: str, model_name: str | None = None):
     """
     [通用审计组件：时光机]
     传入 biz_code，自动展示该对象的完整生命周期。
@@ -291,7 +293,7 @@ def render_audit_timeline(biz_code: str, model_name: str = None):
             if isinstance(diff_data, str):
                 try:
                     diff_data = json.loads(diff_data)
-                except Exception:
+                except (json.JSONDecodeError, TypeError):
                     diff_data = {}
 
             # 使用 Streamlit 的容器进行样式隔离
@@ -313,7 +315,7 @@ def render_audit_timeline(biz_code: str, model_name: str = None):
                             f"<span style='color:green; font-weight:bold;'>{new_val}</span>",
                             unsafe_allow_html=True,
                         )
-    except Exception as e:
+    except DATA_ACCESS_EXCEPTIONS as e:
         st.error(f"读取日志失败: {e}")
     finally:
         if conn:

@@ -1,10 +1,15 @@
-import os
-import pandas as pd
-from datetime import datetime
 import json
+import os
+from datetime import datetime
+
+import pandas as pd
 
 # 🟢 统一从大本营入口引入
+from backend.config.settings import APP_TIMEZONE
 from backend.database import get_connection
+from backend.database.db_engine import DATA_ACCESS_EXCEPTIONS
+
+EXPORT_EXCEPTIONS = DATA_ACCESS_EXCEPTIONS + (OSError,)
 
 
 def export_table_data(table_name, export_dir="exports", file_format="xlsx"):
@@ -30,7 +35,7 @@ def export_table_data(table_name, export_dir="exports", file_format="xlsx"):
                     lambda x: json.dumps(x, ensure_ascii=False) if isinstance(x, (dict, list)) else x
                 )
 
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(APP_TIMEZONE).strftime("%Y%m%d_%H%M%S")
         file_name = f"{table_name}_{timestamp}.{file_format}"
         file_path = os.path.join(export_dir, file_name)
 
@@ -44,8 +49,8 @@ def export_table_data(table_name, export_dir="exports", file_format="xlsx"):
             df.to_csv(file_path, index=False, encoding="utf-8-sig")
 
         return True, file_path
-    except Exception as e:
-        return False, f"导出失败: {str(e)}"
+    except EXPORT_EXCEPTIONS as e:
+        return False, f"导出失败: {e!s}"
     finally:
         if conn:
             conn.close()

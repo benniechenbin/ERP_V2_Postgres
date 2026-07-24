@@ -1,9 +1,10 @@
-import pytest
 import pandas as pd
-from backend.database.crud_base import upsert_dynamic_record, delete_dynamic_record
-from backend.database.crud_finance import submit_sub_payment, mark_project_as_accrued
+import pytest
+
 from backend.core.finance_engine import validate_sub_payment_risk
 from backend.database import db_engine
+from backend.database.crud_base import delete_dynamic_record, upsert_dynamic_record
+from backend.database.crud_finance import mark_project_as_accrued, submit_sub_payment
 
 
 @pytest.fixture
@@ -13,7 +14,7 @@ def setup_risk_data():
     sub_ids = []
 
     # 1. 录入主合同 (TEST-RISK-M01), 金额 1000 万
-    res1, _ = upsert_dynamic_record(
+    _res1, _ = upsert_dynamic_record(
         "main_contract",
         {
             "biz_code": "TEST-RISK-M01",
@@ -37,7 +38,7 @@ def setup_risk_data():
         conn.close()
 
     # 2. 录入分包合同 1 (TEST-RISK-S01), 金额 200 万, 背靠背 (is_back_to_back = 是)
-    res2, _ = upsert_dynamic_record(
+    _res2, _ = upsert_dynamic_record(
         "sub_contract",
         {
             "biz_code": "TEST-RISK-S01",
@@ -50,7 +51,7 @@ def setup_risk_data():
     )
 
     # 3. 录入分包合同 2 (TEST-RISK-S02), 金额 100 万, 非背靠背 (is_back_to_back = 否)
-    res3, _ = upsert_dynamic_record(
+    _res3, _ = upsert_dynamic_record(
         "sub_contract",
         {
             "biz_code": "TEST-RISK-S02",
@@ -101,7 +102,7 @@ def test_back_to_back_payment_risk(setup_risk_data):
     assert "非背靠背合同" in msg1
 
     # 2. 尝试对【背靠背分包】TEST-RISK-S01 支付 80 万 (占总额 40%)，期待放行 (40% <= 50% 收款率)
-    passed2, msg2 = validate_sub_payment_risk("TEST-RISK-S01", 800000.0)
+    passed2, _msg2 = validate_sub_payment_risk("TEST-RISK-S01", 800000.0)
     assert passed2 is True
 
     # 3. 尝试对【背靠背分包】TEST-RISK-S01 支付 120 万 (占总额 60%)，期待拦截 (60% > 50% 收款率)
@@ -130,7 +131,7 @@ def test_main_contract_clearance_accrual(setup_risk_data):
 
     # 模拟支付完分包款 (结清分包)
     # 对分包 1 (200万) 支付 200万
-    success_pay1, msg_pay1 = submit_sub_payment(
+    success_pay1, _msg_pay1 = submit_sub_payment(
         sub_biz_code="TEST-RISK-S01",
         payment_amount=2000000.0,
         operator="测试财务",
@@ -141,7 +142,7 @@ def test_main_contract_clearance_accrual(setup_risk_data):
     db_engine.execute_raw_sql("UPDATE biz_sub_contracts SET total_paid = 2000000 WHERE biz_code = 'TEST-RISK-S01'")
 
     # 对分包 2 (100万) 支付 100万
-    success_pay2, msg_pay2 = submit_sub_payment(
+    success_pay2, _msg_pay2 = submit_sub_payment(
         sub_biz_code="TEST-RISK-S02",
         payment_amount=1000000.0,
         operator="测试财务",

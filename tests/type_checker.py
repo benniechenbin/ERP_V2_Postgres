@@ -19,7 +19,7 @@ def scan_project(root_dir):
     print("-" * 60)
     found_count = 0
 
-    for root, dirs, files in os.walk(root_dir):
+    for root, _dirs, files in os.walk(root_dir):
         # 跳过虚拟环境和缓存
         if any(x in root for x in [".venv", "venv", "anaconda3", "__pycache__", ".git"]):
             continue
@@ -28,7 +28,7 @@ def scan_project(root_dir):
             if file.endswith(".py") and file != "type_checker.py":
                 file_path = os.path.join(root, file)
                 try:
-                    with open(file_path, "r", encoding="utf-8") as f:
+                    with open(file_path, encoding="utf-8") as f:
                         lines = f.readlines()
                         for i, line in enumerate(lines):
                             # 过滤掉注释行
@@ -48,7 +48,7 @@ def scan_project(root_dir):
                                     print(f"   行号: {i + 1} | 内容: {line.strip()}")
                                     print("-" * 40)
                                     found_count += 1
-                except Exception as e:
+                except (OSError, UnicodeError) as e:
                     print(f"⚠️ 无法读取文件 {file_path}: {e}")
 
     if found_count == 0:

@@ -57,7 +57,7 @@ def init_system():
             else:
                 sys_logger.info(f"🤖 已锚定本地模型: {settings.GGUF_MODEL_NAME}")
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - startup preflight reports third-party initialization failures.
         sys_logger.exception(f"❌ 环境预检发现异常：{e}")
         # 在这里可以选择 raise e 强行停止启动，也可以记录后继续
 

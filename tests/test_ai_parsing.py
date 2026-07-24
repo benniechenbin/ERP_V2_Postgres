@@ -1,11 +1,12 @@
 # 文件位置: tests/test_ai_parsing.py
-import os
 import json
+import os
+
 import pandas as pd
 import pytest
+from docx import Document  # 🟢 新增：用于读取 docx
 from dotenv import load_dotenv
 from openai import OpenAI
-from docx import Document  # 🟢 新增：用于读取 docx
 
 
 def extract_text_from_docx(file_path):
@@ -22,7 +23,7 @@ def extract_text_from_docx(file_path):
 
 def load_extraction_schema():
     """从主配置中提取需要 AI 填充的字段"""
-    with open("app_config.json", "r", encoding="utf-8") as f:
+    with open("app_config.json", encoding="utf-8") as f:
         config = json.load(f)
 
     fields = config["models"]["main_contract"]["field_meta"]
@@ -117,5 +118,5 @@ if __name__ == "__main__":
         test_ai_document_extraction()
     except FileNotFoundError:
         print("❌ 错误：请在当前目录下放置一个名为 'test.docx' 的文档。")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - manual script entry point reports provider and parser failures.
         print(f"🚨 运行出错: {e}")

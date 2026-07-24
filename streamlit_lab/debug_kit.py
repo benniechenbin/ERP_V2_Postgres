@@ -1,7 +1,9 @@
-import streamlit as st
-import pandas as pd
-import os
 import json
+import os
+
+import pandas as pd
+import streamlit as st
+
 from backend import database as db
 from backend.config import config_manager
 from backend.config.settings import settings
@@ -18,9 +20,8 @@ def render_debug_sidebar():
 
     mode = st.sidebar.toggle("🐞 开发者模式 (Debug)", value=st.session_state["debug_mode"])
     st.session_state["debug_mode"] = mode
-    if mode:
-        if st.sidebar.button("🚀 进入实验室 (Sandbox)", width="stretch"):
-            st.switch_page("pages/99_🧪_实验室.py")
+    if mode and st.sidebar.button("🚀 进入实验室 (Sandbox)", width="stretch"):
+        st.switch_page("pages/99_🧪_实验室.py")
 
 
 def execute_debug_logic(current_db_path=None):
@@ -75,7 +76,7 @@ def execute_debug_logic(current_db_path=None):
                         schema.sync_database_schema()  # 立即对比并增加缺少的列
                         st.cache_resource.clear()  # 清理 app.py 的启动缓存，防止状态不一致
                         st.success("✅ 数据库底层物理表已同步扩容！")
-                    except Exception as e:
+                    except Exception as e:  # noqa: BLE001 - interactive debug actions isolate schema synchronization.
                         st.error(f"⚠️ 数据库同步失败，请检查终端日志: {e}")
                     # ------------------------------------------------
 
@@ -166,7 +167,7 @@ def execute_debug_logic(current_db_path=None):
         )
 
         # 5. 执行按钮
-        col_run, col_helper = st.columns([1, 4])
+        col_run, _col_helper = st.columns([1, 4])
         with col_run:
             run_btn = st.button("🚀 执行 SQL", type="primary")
 

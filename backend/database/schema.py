@@ -2,12 +2,13 @@
 # 🟢 作用：纯粹的底层数据库引擎，以后任何项目都不需要修改此文件！
 
 import re
+
 from backend.config import config_manager as cfg
 from backend.config.settings import settings
-from backend.database.db_engine import get_connection
 
 # 引入刚刚解耦出去的定制表模块
 from backend.database.custom_schema import execute_custom_static_tables
+from backend.database.db_engine import DATA_ACCESS_EXCEPTIONS, get_connection
 from backend.observability.logger import sys_logger
 
 
@@ -28,7 +29,7 @@ def get_table_columns(table_name):
                 (table_name,),
             )
             return [row[0] for row in cur.fetchall()]
-    except Exception as e:
+    except DATA_ACCESS_EXCEPTIONS as e:
         sys_logger.exception(f"获取列失败: {e}")
         return []
     finally:
@@ -50,7 +51,7 @@ def get_table_schema(table_name):
                 (table_name,),
             )
             return [{"name": row[0], "type": row[1]} for row in cur.fetchall()]
-    except Exception as e:
+    except DATA_ACCESS_EXCEPTIONS as e:
         sys_logger.exception(f"获取表结构失败: {e}")
         return []
     finally:
@@ -84,7 +85,7 @@ def get_all_data_tables():
                 "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND (table_name LIKE 'data_%' OR table_name LIKE 'biz_%')"
             )
             return [row[0] for row in cursor.fetchall()]
-    except Exception:
+    except DATA_ACCESS_EXCEPTIONS:
         return []
     finally:
         if conn:
@@ -100,7 +101,7 @@ def _create_dynamic_business_tables(cursor):
     config_data = cfg.load_data_rules()
     models = config_data.get("models", {})
 
-    for model_name, config in models.items():
+    for config in models.values():
         table_name = config.get("table_name")
         field_meta = config.get("field_meta", {})
         config.get("formulas", {}).keys()
@@ -156,7 +157,7 @@ def _create_dynamic_business_tables(cursor):
                 try:
                     cursor.execute(f'ALTER TABLE "{table_name}" ADD COLUMN "{field_key}" {alter_type};')
                     sys_logger.info(f"🔧 热更新：表 [{table_name}] 自动新增列 [{field_key}]")
-                except Exception as alt_e:
+                except DATA_ACCESS_EXCEPTIONS as alt_e:
                     sys_logger.exception(f"⚠️ 追加列失败: {alt_e}")
 
 
@@ -275,7 +276,7 @@ def sync_database_schema():
         conn.commit()
         sys_logger.info("🚀 [引擎启动] V2.0 数据库架构同步完毕！")
         return True
-    except Exception as e:
+    except DATA_ACCESS_EXCEPTIONS as e:
         if conn:
             conn.rollback()
         sys_logger.critical(f"❌ 数据库同步失败: {e}")

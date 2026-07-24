@@ -1,10 +1,12 @@
-import pandas as pd
 import warnings
+
+import pandas as pd
+
+from backend.config import config_manager as cfg
+from backend.database import crud, db_engine
+from backend.observability.logger import sys_logger
 from backend.services import excel_service
 from backend.utils import formatters
-from backend.database import db_engine, crud
-from backend.config import config_manager as cfg
-from backend.observability.logger import sys_logger
 
 warnings.filterwarnings("ignore", category=UserWarning, module="openpyxl")
 
@@ -38,7 +40,7 @@ def run_import_process(
         if not target_item:
             return False, f"找不到工作表: {target_sheet_name}"
         df = target_item["df"]
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - workbook readers expose heterogeneous format-specific exceptions.
         return False, f"Excel 读取失败: {e}"
 
     if import_mode == "overwrite":
@@ -51,7 +53,7 @@ def run_import_process(
                 (file_name, target_sheet_name),
             )
             conn.commit()
-        except Exception as e:
+        except db_engine.DATA_ACCESS_EXCEPTIONS as e:
             sys_logger.exception(f"覆盖导入清理旧数据失败: {e}")
             if conn:
                 conn.rollback()
@@ -140,7 +142,7 @@ def run_import_process(
             fail_count=fail_count,
             error_details=error_details_dict,
         )
-    except Exception as log_e:
+    except db_engine.DATA_ACCESS_EXCEPTIONS as log_e:
         sys_logger.warning(f"⚠️ 宏观日志记录失败 (不阻断主流程): {log_e}")
 
     # ==========================================
@@ -166,7 +168,7 @@ def _verify_prime_id_exists(biz_code, table_name):
         cursor = conn.cursor()
         cursor.execute(f'SELECT 1 FROM "{table_name}" WHERE biz_code = %s', (str(biz_code),))
         return cursor.fetchone() is not None
-    except Exception as e:
+    except db_engine.DATA_ACCESS_EXCEPTIONS as e:
         sys_logger.exception(f"验证主键失败: {e}")
         return False
     finally:

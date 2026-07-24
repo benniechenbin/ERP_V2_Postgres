@@ -2,7 +2,9 @@ import os
 import shutil
 
 # 🟢 引入新架构的底层引擎
-from backend.database.db_engine import get_connection, UPLOAD_DIR
+from backend.database.db_engine import DATA_ACCESS_EXCEPTIONS, UPLOAD_DIR, get_connection
+
+PROJECT_SERVICE_EXCEPTIONS = DATA_ACCESS_EXCEPTIONS + (OSError,)
 
 
 def update_biz_code_cascade(old_code, new_code, table_name):
@@ -69,10 +71,10 @@ def update_biz_code_cascade(old_code, new_code, table_name):
             msg += " | 文件夹已重命名"
         return True, msg
 
-    except Exception as e:
+    except PROJECT_SERVICE_EXCEPTIONS as e:
         if conn:
             conn.rollback()
-        return False, f"修改失败: {str(e)}"
+        return False, f"修改失败: {e!s}"
     finally:
         if conn:
             conn.close()

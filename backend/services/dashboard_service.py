@@ -1,4 +1,5 @@
 import pandas as pd
+
 from backend import database as db
 from backend.config import config_manager as cfg
 
@@ -56,4 +57,3 @@ def get_global_kpi_stats() -> dict:
 def get_urgent_receivables() -> tuple[float, pd.DataFrame]:
     """获取 30 天内及已逾期的待收款计划 (预警雷达)"""
     # ... (待补充) ...
-    pass

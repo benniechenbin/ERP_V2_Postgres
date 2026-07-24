@@ -1,7 +1,8 @@
 import sys
 from pathlib import Path
-import streamlit as st
+
 import pandas as pd
+import streamlit as st
 
 # ==========================================
 # 🟢 寻路魔法：向上 2 级找到根目录
@@ -10,14 +11,15 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
 # 接入新底座
-from backend.database import crud_base
-from backend.database.db_engine import get_connection
-import sidebar_manager
 import debug_kit
+import sidebar_manager
+
+from backend.database import crud_base
+from backend.database.db_engine import DATA_ACCESS_EXCEPTIONS, get_connection
 
 try:
-    from backend.services.ai_service import AIService
     from backend.observability.logger import sys_logger
+    from backend.services.ai_service import AIService
 except ImportError:
     pass
 
@@ -31,7 +33,8 @@ st.set_page_config(layout="wide", page_title="项目全局看板", page_icon="�
 def show_ai_search_dialog(keyword, initial_df):
     try:
         ai_svc = AIService()
-    except Exception:
+    except Exception:  # noqa: BLE001 - optional AI initialization must not break the dashboard.
+        sys_logger.exception("AI 模块初始化失败")
         st.error("AI 模块未加载")
         return
 
@@ -98,7 +101,7 @@ def show_ai_search_dialog(keyword, initial_df):
                 full_text += chunk
                 container.markdown(full_text + "▌")
             container.markdown(full_text)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - streaming provider failures are rendered at the dialog boundary.
             st.error(f"分析中断: {e}")
 
 
@@ -126,7 +129,7 @@ def load_urgent_receivables():
         """
         df = pd.read_sql_query(sql, conn)
         return df
-    except Exception as e:
+    except DATA_ACCESS_EXCEPTIONS as e:
         sys_logger.exception(f"获取预警失败: {e}")
         return pd.DataFrame()
     finally:

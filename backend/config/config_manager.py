@@ -1,9 +1,9 @@
 # 文件位置: backend/config/config_manager.py
 import json
 from datetime import datetime
-from backend.config.settings import APP_CONFIG_FILE, PROJECT_ROOT
-from backend.observability.logger import sys_logger
 
+from backend.config.settings import APP_CONFIG_FILE, APP_TIMEZONE, PROJECT_ROOT
+from backend.observability.logger import sys_logger
 
 # ========================================================
 # 0. 现代化路径配置
@@ -13,7 +13,7 @@ CONFIG_FILE = APP_CONFIG_FILE
 
 APP_NAME = "建筑专项管理系统"
 APP_VERSION = "V2.0.0 beta"
-BUILD_DATE = datetime.now().strftime("%Y.%m.%d")
+BUILD_DATE = datetime.now(APP_TIMEZONE).strftime("%Y.%m.%d")
 
 
 # ========================================================
@@ -22,7 +22,7 @@ BUILD_DATE = datetime.now().strftime("%Y.%m.%d")
 def _auto_sync_labels(config_data):
     """🟢 多模型表头自动对齐引擎"""
     models = config_data.get("models", {})
-    for model_name, model_info in models.items():
+    for model_info in models.values():
         field_meta = model_info.get("field_meta", {})
         column_mapping = model_info.get("column_mapping", {})
 
@@ -47,10 +47,10 @@ def load_data_rules():
     base_config = {"models": {}}
     if CONFIG_FILE.exists():
         try:
-            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+            with open(CONFIG_FILE, encoding="utf-8") as f:
                 data = json.load(f)
                 return _auto_sync_labels(data)
-        except Exception as e:
+        except (AttributeError, json.JSONDecodeError, OSError, TypeError) as e:
             sys_logger.exception(f"读取配置失败: {e}")
     return base_config
 
@@ -62,7 +62,7 @@ def save_data_rules(rules_dict):
         with open(CONFIG_FILE, "w", encoding="utf-8") as f:
             json.dump(synced_data, f, indent=4, ensure_ascii=False)
         return True
-    except Exception as e:
+    except (AttributeError, OSError, TypeError, ValueError) as e:
         sys_logger.exception(f"保存配置失败: {e}")
         return False
 

@@ -1,6 +1,7 @@
-import streamlit as st
-from backend.config import config_manager as cfg
 import debug_kit
+import streamlit as st
+
+from backend.config import config_manager as cfg
 
 
 def render_sidebar():

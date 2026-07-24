@@ -1,5 +1,6 @@
 import pandas as pd
-from backend.database.db_engine import get_connection, UPLOAD_DIR
+
+from backend.database.db_engine import DATA_ACCESS_EXCEPTIONS, UPLOAD_DIR, get_connection
 from backend.observability.logger import sys_logger
 
 
@@ -44,7 +45,7 @@ def update_biz_code_cascade(old_code, new_code, table_name):
             old_dir.rename(new_dir)  # 彻底解决“孤儿附件”问题
 
         return True, f"业务编号已全盘迁移至 {new_code}"
-    except Exception as e:
+    except DATA_ACCESS_EXCEPTIONS as e:
         if conn:
             conn.rollback()
         return False, str(e)
@@ -61,7 +62,7 @@ def get_attachment_counts():
         # 🟢 替换为 biz_code
         sql = "SELECT biz_code, source_table, COUNT(id) as file_count FROM sys_attachments GROUP BY biz_code, source_table"
         return pd.read_sql_query(sql, conn)
-    except Exception as e:
+    except DATA_ACCESS_EXCEPTIONS as e:
         sys_logger.exception(f"附件统计查询失败: {e}")
         return pd.DataFrame()
     finally:
@@ -82,7 +83,7 @@ def soft_delete_project(project_id, table_name, operator_name="System"):
             )
         conn.commit()
         return True, "已移入回收站"
-    except Exception as e:
+    except DATA_ACCESS_EXCEPTIONS as e:
         if conn:
             conn.rollback()
         return False, str(e)
@@ -104,7 +105,7 @@ def restore_project(project_id, table_name):
             )
         conn.commit()
         return True, "项目已恢复"
-    except Exception as e:
+    except DATA_ACCESS_EXCEPTIONS as e:
         if conn:
             conn.rollback()
         return False, str(e)
@@ -126,8 +127,8 @@ def get_deleted_projects(tables):
                 df_del = pd.read_sql_query(sql, conn)
                 if not df_del.empty:
                     deleted_list.extend(df_del.to_dict("records"))
-            except Exception:
-                continue
+            except DATA_ACCESS_EXCEPTIONS as exc:
+                sys_logger.warning(f"回收站查询跳过表 {tbl}: {exc}")
         return deleted_list
     finally:
         if conn:
@@ -140,14 +141,13 @@ def log_job_operation(
     import_type: str,
     success_count: int,
     fail_count: int = 0,
-    error_details: dict = None,
+    error_details: dict | None = None,
 ):
     """
     🟢 V3.0 导入日志写入 (向后兼容的适配器)
     外观依然是旧的 import_operation，但底层已经接入了全新的 sys_job_logs。
     """
     import json
-    from backend.database.db_engine import get_connection
 
     conn = None
     try:
@@ -179,7 +179,7 @@ def log_job_operation(
             )
         conn.commit()
         return True
-    except Exception as e:
+    except DATA_ACCESS_EXCEPTIONS as e:
         if conn:
             conn.rollback()
         sys_logger.exception(f"🚨 写入批量任务日志失败: {e}")

@@ -2,9 +2,9 @@
 # 🟢 绝对第一顺位：打通项目底层路径 (必须放在最前面！)
 # ==========================================
 import sys
-from pathlib import Path
 import time
 import warnings
+from pathlib import Path
 
 warnings.filterwarnings("ignore", category=UserWarning, message=".*SQLAlchemy.*")
 # 获取当前 app.py 的父目录(streamlit_lab) 的父目录(ERP_V2_PRO)
@@ -15,20 +15,23 @@ sys.path.insert(0, str(ROOT_DIR))
 # ==========================================
 # 🟢 第二顺位：导入第三方标准库
 # ==========================================
-import streamlit as st
-import pandas as pd
 from datetime import datetime
+
+import debug_kit
+import pandas as pd
+import sidebar_manager
+import streamlit as st
 
 # ==========================================
 # 🟢 第三顺位：导入我们自己的 backend
 # ==========================================
 from backend import database as db
-from backend.database import schema
 from backend.config import config_manager as cfg
-import sidebar_manager
-import debug_kit
-from backend.observability.logger import sys_logger
+from backend.config.settings import APP_TIMEZONE
 from backend.core.bootstrap import init_system
+from backend.database import schema
+from backend.database.db_engine import DATA_ACCESS_EXCEPTIONS
+from backend.observability.logger import sys_logger
 
 if "system_initialized" not in st.session_state:
     init_system()
@@ -110,10 +113,7 @@ def load_global_stats():
                 recent_updates.append(top5)
 
     # 合并全局最近更新
-    if recent_updates:
-        df_recent = pd.concat(recent_updates).nlargest(5, "update_time")
-    else:
-        df_recent = pd.DataFrame()
+    df_recent = pd.concat(recent_updates).nlargest(5, "update_time") if recent_updates else pd.DataFrame()
 
     return total_projects, total_contract, total_collection, df_recent
 
@@ -125,7 +125,7 @@ def load_upcoming_receivables():
     conn = db.get_connection()
     try:
         df_plans = pd.read_sql_query("SELECT * FROM biz_payment_plans WHERE deleted_at IS NULL", conn)
-    except Exception as e:
+    except DATA_ACCESS_EXCEPTIONS as e:
         sys_logger.exception(f"首页预警读取失败: {e}")
         df_plans = pd.DataFrame()
     finally:
@@ -181,7 +181,7 @@ def load_upcoming_receivables():
 
 # 3. 页面渲染
 st.title("👋 欢迎使用合同管理系统")
-st.caption(f"今天是 {datetime.now().strftime('%Y年%m月%d日')} | 系统状态: 🟢 正常运行")
+st.caption(f"今天是 {datetime.now(APP_TIMEZONE).strftime('%Y年%m月%d日')} | 系统状态: 🟢 正常运行")
 
 # 加载数据
 with st.spinner("正在汇总全库数据..."):

@@ -1,6 +1,6 @@
 # 文件位置: tests/generate_mock_data.py
-import sys
 import random
+import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -8,8 +8,9 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
-from backend.database.db_engine import get_connection
+from backend.config.settings import APP_TIMEZONE
 from backend.database import crud_base
+from backend.database.db_engine import get_connection
 
 # --- 逼真的业务字典 ---
 CITIES = [
@@ -74,8 +75,8 @@ STAGES = [
 
 def random_date(start_year=2024, end_year=2026):
     """生成随机日期"""
-    start = datetime(start_year, 1, 1)
-    end = datetime(end_year, 12, 31) if end_year < 2026 else datetime.now()
+    start = datetime(start_year, 1, 1, tzinfo=APP_TIMEZONE)
+    end = datetime(end_year, 12, 31, tzinfo=APP_TIMEZONE) if end_year < 2026 else datetime.now(APP_TIMEZONE)
     return start + timedelta(days=random.randint(0, (end - start).days))
 
 
@@ -154,7 +155,7 @@ def generate_data():
             for idx, ratio in enumerate(ratios):
                 plan_amt = m_amount * (ratio / 100.0)
                 # 特意制造一些即将逾期的计划 (点亮大屏红灯)
-                p_date = (datetime.now() + timedelta(days=random.randint(-15, 45))).strftime("%Y-%m-%d")
+                p_date = (datetime.now(APP_TIMEZONE) + timedelta(days=random.randint(-15, 45))).strftime("%Y-%m-%d")
                 cur.execute(
                     """
                     INSERT INTO biz_payment_plans (biz_code, main_contract_code, milestone_name, payment_ratio, planned_amount, planned_date, operator)

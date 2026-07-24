@@ -1,15 +1,18 @@
 # 文件位置: backend/services/analysis_service.py
-import pandas as pd
-from datetime import datetime
 import json
-from backend.database.db_engine import get_connection
+from datetime import datetime
+
+import pandas as pd
+
+from backend.config.settings import APP_TIMEZONE
+from backend.database.db_engine import DATA_ACCESS_EXCEPTIONS, get_connection
 from backend.observability.logger import sys_logger
 
 
 # =========================================================
 # 💰 引擎一：全局双向现金流趋势 (Cash Flow Trend)
 # =========================================================
-def get_cash_flow_trend(year: int = None) -> pd.DataFrame:
+def get_cash_flow_trend(year: int | None = None) -> pd.DataFrame:
     """统合 biz_collections (流入) 和 biz_outbound_payments (流出)"""
     conn = get_connection()
     try:
@@ -43,7 +46,7 @@ def get_cash_flow_trend(year: int = None) -> pd.DataFrame:
         df_trend = df_trend.sort_values("month").reset_index(drop=True)
 
         return df_trend
-    except Exception as e:
+    except DATA_ACCESS_EXCEPTIONS as e:
         sys_logger.exception(f"🚨 现金流趋势测算失败: {e}", exc_info=True)
         return pd.DataFrame()
     finally:
@@ -76,7 +79,7 @@ def calculate_overall_margin() -> dict:
             "gross_profit": gross_profit,
             "margin_rate": margin_rate,
         }
-    except Exception as e:
+    except DATA_ACCESS_EXCEPTIONS as e:
         sys_logger.exception(f"🚨 业财剪刀差测算失败: {e}", exc_info=True)
         return {"total_income": 0, "total_cost": 0, "gross_profit": 0, "margin_rate": 0}
     finally:
@@ -110,7 +113,7 @@ def get_tax_exposure_stats() -> dict:
             "sub_invoiced_received": sub_inv_rec,
             "sub_exposure": max(0, sub_pay - sub_inv_rec),
         }
-    except Exception as e:
+    except DATA_ACCESS_EXCEPTIONS as e:
         sys_logger.exception(f"🚨 税务敞口测算失败: {e}", exc_info=True)
         return {}
     finally:
@@ -121,7 +124,7 @@ def get_tax_exposure_stats() -> dict:
 # =========================================================
 # 👤 引擎四：组织/人员绩效聚合 (Performance Aggregation)
 # =========================================================
-def get_manager_performance(year: int = None) -> pd.DataFrame:
+def get_manager_performance(year: int | None = None) -> pd.DataFrame:
     """按负责人分组统计业绩"""
     conn = get_connection()
     try:
@@ -142,7 +145,7 @@ def get_manager_performance(year: int = None) -> pd.DataFrame:
         df["total_contract"] = df["total_contract"].astype(float)
         df["total_collected"] = df["total_collected"].astype(float)
         return df
-    except Exception as e:
+    except DATA_ACCESS_EXCEPTIONS as e:
         sys_logger.exception(f"🚨 绩效聚合失败: {e}", exc_info=True)
         return pd.DataFrame()
     finally:
@@ -158,9 +161,10 @@ def get_high_risk_projects(debt_threshold=100000, rate_threshold=0.2, grace_days
     侦测高危主合同 (V2.1 智能升级版)
     屏蔽新签合同悖论，仅侦测：欠款 > 阈值 且 欠款比例 > 比例 且 签约时间 > 宽限期(默认半年)
     """
+    import pandas as pd
+
     from backend.database.db_engine import get_connection
     from backend.observability.logger import sys_logger
-    import pandas as pd
 
     conn = get_connection()
     try:
@@ -202,7 +206,7 @@ def get_high_risk_projects(debt_threshold=100000, rate_threshold=0.2, grace_days
         df_risk = df[mask].sort_values("uncollected", ascending=False)
         return df_risk
 
-    except Exception as e:
+    except DATA_ACCESS_EXCEPTIONS as e:
         sys_logger.exception(f"🚨 风险侦测失败: {e}", exc_info=True)
         return pd.DataFrame()
     finally:
@@ -263,7 +267,7 @@ def prepare_gantt_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     df_copy = _flatten_extra_props(df.copy())  # 🟢 展开 JSONB
 
     if "start_date" not in df_copy.columns:
-        current_year = datetime.now().year
+        current_year = datetime.now(APP_TIMEZONE).year
         df_copy["start_date"] = pd.to_datetime(f"{current_year}-01-01")
     else:
         df_copy["start_date"] = pd.to_datetime(df_copy["start_date"], errors="coerce")
@@ -273,7 +277,7 @@ def prepare_gantt_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     else:
         df_copy["end_date"] = pd.to_datetime(df_copy["end_date"], errors="coerce")
 
-    df_copy["start_date"] = df_copy["start_date"].fillna(pd.to_datetime(datetime.now()))
+    df_copy["start_date"] = df_copy["start_date"].fillna(pd.to_datetime(datetime.now(APP_TIMEZONE)))
     df_copy["end_date"] = df_copy["end_date"].fillna(df_copy["start_date"] + pd.Timedelta(days=90))
 
     return df_copy
@@ -294,7 +298,7 @@ def generate_gantt_data(df: pd.DataFrame) -> list:
         progress_val = row.get("progress", row.get("进度", 0))
         try:
             progress_val = float(progress_val)
-        except Exception:
+        except (TypeError, ValueError):
             progress_val = 0
 
         manager = row.get("manager", row.get("项目经理", row.get("负责人", "未分配")))

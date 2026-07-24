@@ -8,9 +8,8 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT_DIR))
 
-from backend.database.db_engine import get_connection, execute_raw_sql
-from backend.database import crud_base
-from backend.database import crud_finance
+from backend.database import crud_base, crud_finance
+from backend.database.db_engine import execute_raw_sql, get_connection
 from backend.database.schema import sync_database_schema
 
 
@@ -97,7 +96,7 @@ def run_scenario():
     )
     print("⚔️ 5. 模拟风控：测试分包背靠背红线与合规支付...")
     # 模拟先合法支付 50万
-    success2, msg2 = crud_finance.submit_sub_payment(
+    _success2, msg2 = crud_finance.submit_sub_payment(
         sub_biz_code="TEST-SUB-001",
         payment_amount=500000,
         operator="测试小哥",
@@ -129,7 +128,7 @@ def run_scenario():
     print("💸 [结清测试]：把分包尾款结清，再尝试流转主合同")
 
     print("  [合规支付] 支付剩余 150万 分包款...")
-    success_pay, msg_pay = crud_finance.submit_sub_payment(
+    _success_pay, msg_pay = crud_finance.submit_sub_payment(
         sub_biz_code="TEST-SUB-001",
         payment_amount=1500000,
         operator="财务主管",
@@ -147,7 +146,7 @@ def run_scenario():
         print(f"  ❌ 计提仍失败: {acc_msg2}")
 
     print("\n  [模拟年度大扫除] 执行全局年度结转...")
-    arc_success, arc_msg = crud_finance.execute_yearly_accrual_archive()
+    _arc_success, arc_msg = crud_finance.execute_yearly_accrual_archive()
     print(f"  👉 结转结果: {arc_msg}")
 
     # 断言：主合同应该已经被软删除了
@@ -169,5 +168,5 @@ if __name__ == "__main__":
     try:
         run_scenario()
         print("\n🎉🎉 全链路自动化测试通过！核心财务引擎逻辑极其稳固！")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - manual end-to-end scenario reports unexpected integration failures.
         print(f"\n🚨🚨 测试过程中发生异常奔溃: {e}")

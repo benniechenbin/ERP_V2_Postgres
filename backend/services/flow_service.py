@@ -1,9 +1,12 @@
 # 文件位置: backend/services/flow_service.py
-import pandas as pd
 from datetime import datetime
 
+import pandas as pd
+
 # 🟢 接入数据库大本营
+from backend.config.settings import APP_TIMEZONE
 from backend.database import get_connection
+from backend.database.db_engine import DATA_ACCESS_EXCEPTIONS
 from backend.observability.logger import sys_logger
 
 
@@ -33,7 +36,7 @@ def recalculate_project_total(biz_code, source_table):
 
         conn.commit()
         return True, total_val
-    except Exception as e:
+    except DATA_ACCESS_EXCEPTIONS as e:
         if conn:
             conn.rollback()
         return False, str(e)
@@ -47,7 +50,7 @@ def add_flow_record(biz_code, source_table, amount, flow_date=None, stage="收�
     [流水服务] 新增记录后，自动触发重算
     """
     if not flow_date:
-        flow_date = datetime.now().strftime("%Y-%m-%d")
+        flow_date = datetime.now(APP_TIMEZONE).strftime("%Y-%m-%d")
 
     conn = None
     try:
@@ -67,7 +70,7 @@ def add_flow_record(biz_code, source_table, amount, flow_date=None, stage="收�
         recalculate_project_total(biz_code, source_table)
 
         return True, "流水记录已添加并更新汇总"
-    except Exception as e:
+    except DATA_ACCESS_EXCEPTIONS as e:
         if conn:
             conn.rollback()
         return False, str(e)
@@ -92,7 +95,7 @@ def get_project_flows(biz_code, source_table):
         """
         df = pd.read_sql_query(query, conn, params=(biz_code, source_table))
         return df
-    except Exception as e:
+    except DATA_ACCESS_EXCEPTIONS as e:
         sys_logger.exception(f"查询流水失败: {e}")
         return pd.DataFrame()
     finally:
@@ -116,7 +119,7 @@ def delete_flow_record(flow_id, biz_code, source_table):
         recalculate_project_total(biz_code, source_table)
 
         return True, "记录已删除并更新汇总"
-    except Exception as e:
+    except DATA_ACCESS_EXCEPTIONS as e:
         if conn:
             conn.rollback()
         return False, str(e)

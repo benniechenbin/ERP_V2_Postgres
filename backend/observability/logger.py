@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+
 from loguru import logger
 
 
@@ -57,4 +58,4 @@ def setup_logger(log_dir: Path, log_level: str = "INFO"):
 # 🚀 统一导出别名，方便旧代码平替
 sys_logger = logger
 
-__all__ = ["sys_logger", "setup_logger"]
+__all__ = ["setup_logger", "sys_logger"]

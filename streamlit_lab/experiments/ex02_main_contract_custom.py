@@ -1,9 +1,10 @@
-import streamlit as st
-import pandas as pd
-from datetime import datetime
 import sys
 import warnings
+from datetime import date, datetime
 from pathlib import Path
+
+import pandas as pd
+import streamlit as st
 
 # 🟢 1. 环境与路径初始化
 warnings.filterwarnings("ignore", category=UserWarning, message=".*SQLAlchemy.*")
@@ -12,17 +13,18 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 # 🟢 2. 引入后端服务与组件
-from backend.database import crud_base, crud
-from backend.database.db_engine import execute_raw_sql
-from backend.config import config_manager as cfg
+import components as ui
+
 import backend.database as db
 from backend import services as svc
+from backend.config import config_manager as cfg
+from backend.config.settings import APP_TIMEZONE
+from backend.database import crud, crud_base
+from backend.database.db_engine import DATA_ACCESS_EXCEPTIONS, execute_raw_sql
+from backend.observability.logger import sys_logger
 
 # 核心 AI 提取接口
 from backend.services.ai_service import get_main_contract_elements
-from backend.observability.logger import sys_logger
-
-import components as ui
 
 
 def run(df, conn):
@@ -84,7 +86,7 @@ def run(df, conn):
                 df["计划金额"] = pd.to_numeric(df["计划金额"], errors="coerce").fillna(0.0)
                 df["预警日期"] = pd.to_datetime(df["预警日期"]).dt.date
             return df
-        except Exception as e:
+        except DATA_ACCESS_EXCEPTIONS as e:
             st.error(f"⚠️ 读取收款计划失败: {e}")
             return pd.DataFrame(
                 columns=[
@@ -137,7 +139,7 @@ def run(df, conn):
                 if "录入时间" in df.columns:
                     df["录入时间"] = pd.to_datetime(df["录入时间"]).dt.strftime("%Y-%m-%d %H:%M")
             return df
-        except Exception as e:
+        except DATA_ACCESS_EXCEPTIONS as e:
             st.error(f"⚠️ 读取{table_type}历史失败: {e}")
             return pd.DataFrame()
         finally:
@@ -178,7 +180,7 @@ def run(df, conn):
                     elif raw_ratio > 0 and raw_amount == 0:
                         final_amount = round(total_contract_amount * (raw_ratio / 100.0), 2)
 
-                    plan_code = f"PLAN-{datetime.now().strftime('%Y%m%d%H%M%S%f')}-{idx}"
+                    plan_code = f"PLAN-{datetime.now(APP_TIMEZONE).strftime('%Y%m%d%H%M%S%f')}-{idx}"
                     planned_date = row.get("预警日期")
                     if pd.isna(planned_date) or not planned_date:
                         planned_date = None
@@ -199,7 +201,7 @@ def run(df, conn):
 
                 conn.commit()  # 🟢 统一提交事务
                 return True, "计划已覆盖保存"
-        except Exception as e:
+        except DATA_ACCESS_EXCEPTIONS as e:
             if conn:
                 conn.rollback()
             return False, str(e)
@@ -271,7 +273,7 @@ def run(df, conn):
                                 # 🟢 终极填表魔法 3：精准类型转换！满足 Streamlit 组件的变态要求
                                 if f_type == "date":
                                     # 把 "2025-06-30" 这样的字符串，变成真正的 datetime.date 对象
-                                    parsed_date = datetime.strptime(str(v)[:10], "%Y-%m-%d").date()
+                                    parsed_date = date.fromisoformat(str(v)[:10])
                                     st.session_state[state_key] = parsed_date
                                 elif f_type in ["money", "number", "percent"]:
                                     # 数字类组件需要 float
@@ -279,9 +281,9 @@ def run(df, conn):
                                 else:
                                     # 其他文本类组件需要 string
                                     st.session_state[state_key] = str(v)
-                            except Exception:
+                            except (TypeError, ValueError) as exc:
                                 # 万一 AI 犯傻（比如把日期写成“年底”），转换失败就跳过这个字段，不引发崩溃
-                                pass
+                                sys_logger.warning(f"跳过无法转换的 AI 字段 {k}: {exc}")
 
                         # 存入 buffer
                         st.session_state.ai_extracted_buffer = ai_results
@@ -392,7 +394,7 @@ def run(df, conn):
                         import_type="main_contract",  # 借用 import_type 存目标模型
                         success_count=success_count,
                     )
-                except Exception as e:
+                except DATA_ACCESS_EXCEPTIONS as e:
                     sys_logger.exception(f"写入结转日志失败: {e}")
 
                 if ui and hasattr(ui, "show_toast_success"):
@@ -516,7 +518,7 @@ def run(df, conn):
                 """
                 stage_df = pd.read_sql_query(sql, conn)
                 dynamic_stages = stage_df["milestone_name"].tolist()
-            except Exception:
+            except DATA_ACCESS_EXCEPTIONS:
                 dynamic_stages = []
             finally:
                 if conn:
@@ -642,7 +644,7 @@ def run(df, conn):
                     )
 
                     amount = st.number_input("💵 操作金额 (元)", min_value=0.01, step=50000.0, format="%.2f")
-                    action_date = st.date_input("📅 发生日期", datetime.now())
+                    action_date = st.date_input("📅 发生日期", datetime.now(APP_TIMEZONE))
 
                     current_user = st.session_state.get("user_name", "当前系统用户")
                     operator = st.text_input("👤 经办人", value=current_user, disabled=True)
@@ -657,7 +659,7 @@ def run(df, conn):
                         if "收款" in action_type:
                             table_model = "biz_collections"
                             data_dict = {
-                                "biz_code": f"COLL-{datetime.now().strftime('%Y%m%d%H%M%S%f')}",
+                                "biz_code": f"COLL-{datetime.now(APP_TIMEZONE).strftime('%Y%m%d%H%M%S%f')}",
                                 "main_contract_code": selected_biz_code,
                                 "target_plan_code": target_plan_code,  # 🟢 精准写入流水表
                                 "update_project_stage": selected_node_name
@@ -671,7 +673,7 @@ def run(df, conn):
                         else:
                             table_model = "biz_invoices"
                             data_dict = {
-                                "biz_code": f"INV-{datetime.now().strftime('%Y%m%d%H%M%S%f')}",
+                                "biz_code": f"INV-{datetime.now(APP_TIMEZONE).strftime('%Y%m%d%H%M%S%f')}",
                                 "main_contract_code": selected_biz_code,
                                 "target_plan_code": target_plan_code,  # 🟢 精准写入发票表
                                 "invoice_amount": amount,
@@ -929,5 +931,5 @@ def run(df, conn):
                 if ui and hasattr(ui, "render_audit_timeline"):
                     try:
                         ui.render_audit_timeline(selected_biz_code, "main_contract")
-                    except Exception as e:
+                    except Exception as e:  # noqa: BLE001 - audit rendering is isolated from the page lifecycle.
                         st.error(f"时光机加载失败: {e}")

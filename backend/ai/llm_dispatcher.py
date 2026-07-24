@@ -1,4 +1,5 @@
 from openai import OpenAI
+
 from backend.config.settings import MODELS_DIR, settings
 from backend.observability.logger import sys_logger
 
@@ -41,7 +42,7 @@ class LLMDispatcher:
                 sys_logger.info("✅ 内置 AI 引擎加载完毕！")
             except ImportError:
                 sys_logger.exception("❌ 缺少本地 AI 引擎依赖！请执行: pip install llama-cpp-python")
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - local model loading is an SDK isolation boundary.
                 sys_logger.exception(f"❌ 本地模型加载失败，请检查文件是否存在: {e}")
 
     def chat(self, messages, response_format=None):
@@ -61,5 +62,6 @@ class LLMDispatcher:
                 )
                 return response["choices"][0]["message"]["content"]
 
-        except Exception as e:
-            return f"AI 调度异常: {str(e)}"
+        except Exception as e:  # noqa: BLE001 - provider SDK failures are normalized to the public string contract.
+            sys_logger.exception(f"AI 调度异常: {e}")
+            return f"AI 调度异常: {e!s}"

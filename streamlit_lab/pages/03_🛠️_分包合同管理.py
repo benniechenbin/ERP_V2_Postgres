@@ -1,9 +1,10 @@
-import streamlit as st
-import pandas as pd
-from datetime import datetime
 import sys
 import warnings
+from datetime import date, datetime
 from pathlib import Path
+
+import pandas as pd
+import streamlit as st
 
 # 彻底静默 pandas 的 SQLAlchemy 警告
 warnings.filterwarnings("ignore", category=UserWarning, message=".*SQLAlchemy.*")
@@ -12,15 +13,17 @@ warnings.filterwarnings("ignore", category=UserWarning, message=".*SQLAlchemy.*"
 ROOT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
-from backend.database import crud
-from backend.database.db_engine import execute_raw_sql, get_connection
-from backend.config import config_manager as cfg
-import backend.database as db
-from backend.services.ai_service import extract_contract_elements
-
-import sidebar_manager
-import debug_kit
 import components as ui
+import debug_kit
+import sidebar_manager
+
+import backend.database as db
+from backend.config import config_manager as cfg
+from backend.config.settings import APP_TIMEZONE
+from backend.database import crud
+from backend.database.db_engine import DATA_ACCESS_EXCEPTIONS, execute_raw_sql, get_connection
+from backend.observability.logger import sys_logger
+from backend.services.ai_service import extract_contract_elements
 
 # 隐藏/只读字段配置
 FORM_HIDDEN_FIELDS = []
@@ -101,7 +104,7 @@ def load_sub_financial_history(sub_contract_code, table_type="payments"):
             if "录入时间" in df.columns:
                 df["录入时间"] = pd.to_datetime(df["录入时间"]).dt.strftime("%Y-%m-%d %H:%M")
         return df
-    except Exception as e:
+    except DATA_ACCESS_EXCEPTIONS as e:
         st.error(f"⚠️ 读取历史失败: {e}")
         return pd.DataFrame()
     finally:
@@ -167,13 +170,13 @@ def sub_contract_form_dialog(existing_data=None):
                             f_type = field_meta.get(k, {}).get("type", "text")
                             try:
                                 if f_type == "date":
-                                    st.session_state[state_key] = datetime.strptime(str(v)[:10], "%Y-%m-%d").date()
+                                    st.session_state[state_key] = date.fromisoformat(str(v)[:10])
                                 elif f_type in ["money", "number", "num", "percent"]:
                                     st.session_state[state_key] = float(v)
                                 else:
                                     st.session_state[state_key] = str(v)
-                            except Exception:
-                                pass
+                            except (TypeError, ValueError) as exc:
+                                sys_logger.warning(f"跳过无法转换的 AI 字段 {k}: {exc}")
 
                         st.session_state.ai_sub_buffer = ai_results
                         st.success("🎉 AI 提取完毕！下方表单已自动填充。")
@@ -380,16 +383,14 @@ else:
             "is_back_to_back": "背靠背",
             "settlement_status": "结算状态",
         }
-        for col in display_cols.keys():
+        for col in display_cols:
             if col not in df_sub.columns:
                 df_sub[col] = None
 
         df_display = df_sub[list(display_cols.keys())].rename(columns=display_cols)
         df_display.insert(0, "☑️", False)
 
-        df_display["背靠背"] = df_display["背靠背"].apply(
-            lambda x: True if str(x).lower() in ["true", "1", "是"] else False
-        )
+        df_display["背靠背"] = df_display["背靠背"].apply(lambda x: str(x).lower() in ["true", "1", "是"])
 
         edited_df = st.data_editor(
             df_display,
@@ -460,7 +461,7 @@ else:
 
             with st.form(key="sub_flow_form", clear_on_submit=True):
                 amount = st.number_input("💵 操作金额 (元)", min_value=0.01, step=10000.0, format="%.2f")
-                action_date = st.date_input("📅 发生日期", datetime.now())
+                action_date = st.date_input("📅 发生日期", datetime.now(APP_TIMEZONE))
 
                 # 动态字段渲染
                 if "收票" in action_type:
@@ -479,7 +480,7 @@ else:
                     if "收票" in action_type:
                         sql = "INSERT INTO biz_sub_invoices (biz_code, sub_contract_code, invoice_amount, invoice_date, invoice_number, invoice_type, operator, remarks) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
                         vals = (
-                            f"SINV-{datetime.now().strftime('%Y%m%d%H%M%S')}",
+                            f"SINV-{datetime.now(APP_TIMEZONE).strftime('%Y%m%d%H%M%S')}",
                             selected_biz_code,
                             amount,
                             action_date,

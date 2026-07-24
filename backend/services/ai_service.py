@@ -1,9 +1,10 @@
 import json
+
 import PyPDF2
 from docx import Document
 
-from backend.observability.logger import sys_logger
 from backend.config import config_manager as cfg
+from backend.observability.logger import sys_logger
 
 
 def extract_text_from_upload(uploaded_file):
@@ -16,11 +17,11 @@ def extract_text_from_upload(uploaded_file):
             for page in reader.pages[:8]:
                 text += page.extract_text() + "\n"
         elif name.endswith(".docx"):
-            doc = Document(uploaded_file)  #
+            doc = Document(uploaded_file)
             for para in doc.paragraphs[:150]:
                 text += para.text + "\n"
         return text[:8000]
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - uploaded document parsers expose heterogeneous exceptions.
         sys_logger.exception(f"AI 文本提取失败: {e}")
         return ""
 
@@ -74,6 +75,6 @@ def extract_contract_elements(uploaded_file, model_name: str, dispatcher):
 
     try:
         return json.loads(response_text)
-    except Exception as e:
+    except (json.JSONDecodeError, TypeError) as e:
         sys_logger.exception(f"AI 解析全字段 JSON 失败: {e}")
         return {}

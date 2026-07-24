@@ -1,11 +1,13 @@
 from datetime import datetime
+
 import pandas as pd
 
 from backend.config import config_manager as cfg
-from backend.database.db_engine import get_connection
-from backend.database.schema import get_all_data_tables, has_column
-from backend.database.crud_base import upsert_dynamic_record  # 🟢 内部调用基础引擎
+from backend.config.settings import APP_TIMEZONE
 from backend.core.finance_engine import validate_sub_payment_risk
+from backend.database.crud_base import upsert_dynamic_record  # 🟢 内部调用基础引擎
+from backend.database.db_engine import DATA_ACCESS_EXCEPTIONS, get_connection
+from backend.database.schema import get_all_data_tables, has_column
 from backend.observability.logger import sys_logger
 
 
@@ -52,7 +54,7 @@ def check_main_contract_clearance(main_contract_code: str) -> tuple[bool, str]:
                 return False, "操作拦截：名下有分包未结清：\n" + "\n".join(error_details)
 
             return True, "检查通过"
-    except Exception as e:
+    except DATA_ACCESS_EXCEPTIONS as e:
         return False, f"业财校验引擎异常: {e}"
     finally:
         if conn:
@@ -75,7 +77,7 @@ def mark_project_as_accrued(model_name: str, biz_code: str):
     # 2. 瞬间生成时间戳与状态字典
     patch_dict = {
         "is_provisioned": "是",
-        "provision_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),  # 🟢 补齐计提时间！
+        "provision_time": datetime.now(APP_TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),  # 🟢 补齐计提时间！
     }
 
     model_config = cfg.get_model_config(model_name)
@@ -100,7 +102,7 @@ def mark_project_as_accrued(model_name: str, biz_code: str):
         # 4. 🟢 呼叫智能引擎安全保存！
         return upsert_dynamic_record(model_name=model_name, data_dict=patch_dict, record_id=record_id)
 
-    except Exception as e:
+    except DATA_ACCESS_EXCEPTIONS as e:
         return False, f"计提操作失败: {e}"
     finally:
         if conn:
@@ -130,7 +132,7 @@ def execute_yearly_accrual_archive():
 
         conn.commit()
         return True, f"年度结转完成！共将 {archived_count} 个已计提项目移入回收站。"
-    except Exception as e:
+    except DATA_ACCESS_EXCEPTIONS as e:
         if conn:
             conn.rollback()
         return False, str(e)
@@ -185,7 +187,7 @@ def submit_sub_payment(
         sys_logger.info(f"✅ 分包付款成功落库 [{pay_flow_code}] 金额: {payment_amount}")
         return True, "✅ 支付记录已安全入库！"
 
-    except Exception as e:
+    except DATA_ACCESS_EXCEPTIONS as e:
         if conn:
             conn.rollback()
         sys_logger.exception(f"🚨 付款落库失败 [{sub_biz_code}]: {e}", exc_info=True)
@@ -264,7 +266,7 @@ def sync_main_contract_finance(main_contract_code: str):
 
         conn.commit()
         return True, "财务数据同步完成"
-    except Exception as e:
+    except DATA_ACCESS_EXCEPTIONS as e:
         if conn:
             conn.rollback()
         return False, f"同步失败: {e}"

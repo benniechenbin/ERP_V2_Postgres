@@ -8,11 +8,12 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
-import streamlit as st
-from backend.config import config_manager as cfg
-from backend import services as svc
-from sidebar_manager import render_sidebar
 import debug_kit
+import streamlit as st
+from sidebar_manager import render_sidebar
+
+from backend import services as svc
+from backend.config import config_manager as cfg
 
 st.set_page_config(layout="wide", page_title="数据导入中心")
 render_sidebar()

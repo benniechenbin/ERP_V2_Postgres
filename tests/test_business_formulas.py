@@ -1,11 +1,12 @@
-import pytest
 import pandas as pd
-from backend.database.crud_base import upsert_dynamic_record, delete_dynamic_record
+import pytest
+
 from backend.database import db_engine
+from backend.database.crud_base import delete_dynamic_record, upsert_dynamic_record
 from backend.services.analysis_service import (
     calculate_overall_margin,
-    get_manager_performance,
     get_high_risk_projects,
+    get_manager_performance,
 )
 
 
@@ -16,7 +17,7 @@ def setup_business_data():
     sub_ids = []
 
     # 1. 录入 2 个主合同 (合集 1000 万)
-    res1, _ = upsert_dynamic_record(
+    _res1, _ = upsert_dynamic_record(
         "main_contract",
         {
             "biz_code": "TEST-FORMULA-M01",
@@ -29,7 +30,7 @@ def setup_business_data():
         },
     )
 
-    res2, _ = upsert_dynamic_record(
+    _res2, _ = upsert_dynamic_record(
         "main_contract",
         {
             "biz_code": "TEST-FORMULA-M02",
@@ -43,7 +44,7 @@ def setup_business_data():
     )
 
     # 2. 录入 2 个分包合同 (合计 400 万)
-    res3, _ = upsert_dynamic_record(
+    _res3, _ = upsert_dynamic_record(
         "sub_contract",
         {
             "biz_code": "TEST-FORMULA-S01",
@@ -54,7 +55,7 @@ def setup_business_data():
         },
     )
 
-    res4, _ = upsert_dynamic_record(
+    _res4, _ = upsert_dynamic_record(
         "sub_contract",
         {
             "biz_code": "TEST-FORMULA-S02",

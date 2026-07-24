@@ -1,4 +1,5 @@
 import pandas as pd
+
 from backend.config import config_manager as cfg
 from backend.core import finance_engine
 from backend.observability.logger import sys_logger
@@ -37,7 +38,7 @@ def apply_business_formulas(df: pd.DataFrame, model_name: str) -> pd.DataFrame:
         try:
             # 🟢 使用 engine='python' 兼容性更好
             df_result[target_col] = df_result.eval(formula_str, engine="python")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - pandas formula evaluation is isolated per configured formula.
             sys_logger.exception(f"⚠️ 公式执行失败 [{target_col} = {formula_str}]: {e}")
             df_result[target_col] = 0.0
 

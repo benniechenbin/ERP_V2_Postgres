@@ -1,7 +1,9 @@
-from typing import Optional, Literal
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field
 from pathlib import Path
+from typing import Literal
+from zoneinfo import ZoneInfo
+
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 BASE_DIR = PROJECT_ROOT  # 兼容旧代码中的命名
@@ -14,6 +16,7 @@ MODELS_DIR = PROJECT_ROOT / "backend" / "models"
 HOST_DATA_DIR = PROJECT_ROOT / "host_data"
 EXPERIMENTS_DIR = HOST_DATA_DIR / "experiments"
 APP_CONFIG_FILE = PROJECT_ROOT / "app_config.json"
+APP_TIMEZONE = ZoneInfo("Asia/Shanghai")
 
 
 def resolve_project_path(path_value: str | Path) -> Path:
@@ -37,12 +40,12 @@ class Settings(BaseSettings):
 
     # ================= 2. OpenAI / DeepSeek 配置 =================
     # Optional[str] = None 表示如果 .env 里没配，它就是 None，系统不报错
-    OPENAI_API_KEY: Optional[str] = Field(default=None, validation_alias="OPENAI_API_KEY")
+    OPENAI_API_KEY: str | None = Field(default=None, validation_alias="OPENAI_API_KEY")
     OPENAI_BASE_URL: str = Field(default="https://api.deepseek.com")
     OPENAI_MODEL: str = Field(default="deepseek-chat")
 
     # ================= 3. 本地 GGUF 配置 =================
-    GGUF_MODEL_NAME: Optional[str] = Field(default=None)
+    GGUF_MODEL_NAME: str | None = Field(default=None)
 
     # ================= 4. Ollama 配置 =================
     OLLAMA_BASE_URL: str = Field(default="http://localhost:11434/v1")

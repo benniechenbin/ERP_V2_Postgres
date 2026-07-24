@@ -7,7 +7,7 @@ try:
 except ImportError:
     RealDictCursor = "RealDictCursor"
 
-from backend.database.db_engine import get_connection
+from backend.database.db_engine import DATA_ACCESS_EXCEPTIONS, get_connection
 from backend.observability.logger import sys_logger
 
 
@@ -248,7 +248,7 @@ def validate_sub_payment_risk(sub_biz_code: str, apply_amount: float, conn=None)
 
         return True, "风控测算通过，允许付款"
 
-    except Exception as e:
+    except DATA_ACCESS_EXCEPTIONS as e:
         sys_logger.exception(f"  [异常] 风控引擎崩溃: {e}", exc_info=True)
         return False, f"风控异常: {e}"
     finally:

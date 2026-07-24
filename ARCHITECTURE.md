@@ -20,8 +20,8 @@ graph TD
     Engine <--> Postgres[(PostgreSQL 数据库 / SQLite)]
 ```
 
-* **配置驱动（灵魂）**：所有的合同类型、字段规则（包括字段类型、是否只读、AI 提取规则、展示排序等）均定义在 [app_config.json](file:///e:/developer/ERP_V2_Postgres/app_config.json) 中。修改此配置文件，底层的数据库结构及前端的输入表单将会**同步自动扩容/调整**，无需手动修改代码。
-* **数据流向**：前端 Streamlit 接收用户操作，调用 `backend/services` 下的相应逻辑模块，完成财务核算、AI 合同智能识别或数据导入清洗，最后经由 `backend/database/crud.py` 进行持久化存储。
+- **配置驱动（灵魂）**：所有的合同类型、字段规则（包括字段类型、是否只读、AI 提取规则、展示排序等）均定义在 [app_config.json](file:///e:/developer/ERP_V2_Postgres/app_config.json) 中。修改此配置文件，底层的数据库结构及前端的输入表单将会**同步自动扩容/调整**，无需手动修改代码。
+- **数据流向**：前端 Streamlit 接收用户操作，调用 `backend/services` 下的相应逻辑模块，完成财务核算、AI 合同智能识别或数据导入清洗，最后经由 `backend/database/crud.py` 进行持久化存储。
 
 ---
 
@@ -76,7 +76,7 @@ graph TD
 │   ├── sidebar_manager.py             # 侧边栏全局控制：链接配置、开发者开关、版本标注
 │   ├── experiments/                   # 冗余/备用实验性组件 (不挂载在常规侧边栏菜单)
 │   │   ├── ex01_risk_engine.py        # 实验性合同风险测评系统
-│   │   └── ex02_主合同管理页面自定义.py # 实验性前端表单拖拽自适应布局
+│   │   └── ex02_main_contract_custom.py # 实验性前端表单拖拽自适应布局
 │   └── pages/                         # 独立菜单功能页面目录
 │       ├── 01_📂_项目看板.py           # 项目各生命周期进度看板矩阵页
 │       ├── 02_🛠️_主合同管理.py          # 主合同增删改查、AI提取、附件及时光机详情页
@@ -101,12 +101,14 @@ graph TD
 为了方便在代码编辑器中一键直达对应文件，下面列出了系统最核心的组件：
 
 ### ⚙️ 全局配置与环境
+
 - 核心元配置数据: [app_config.json](file:///e:/developer/ERP_V2_Postgres/app_config.json)
 - 配置同步管理器: [backend/config/config_manager.py](file:///e:/developer/ERP_V2_Postgres/backend/config/config_manager.py)
 - 系统环境与秘钥校验: [backend/config/settings.py](file:///e:/developer/ERP_V2_Postgres/backend/config/settings.py)
 - 环境配置模板: [.env.example](file:///e:/developer/ERP_V2_Postgres/.env.example)
 
 ### 🏗️ 后端核心与计算引擎
+
 - 物理表动态扩容模块: [backend/database/schema.py](file:///e:/developer/ERP_V2_Postgres/backend/database/schema.py)
 - 多库及适配引擎: [backend/database/db_engine.py](file:///e:/developer/ERP_V2_Postgres/backend/database/db_engine.py)
 - 财务指标计算引擎: [backend/core/finance_engine.py](file:///e:/developer/ERP_V2_Postgres/backend/core/finance_engine.py)
@@ -114,6 +116,7 @@ graph TD
 - 系统点火与自检: [backend/core/bootstrap.py](file:///e:/developer/ERP_V2_Postgres/backend/core/bootstrap.py)
 
 ### 💾 业务数据操作与服务
+
 - 数据库操作总门面: [backend/database/crud.py](file:///e:/developer/ERP_V2_Postgres/backend/database/crud.py)
 - 专属物理表 DDL 定义: [backend/database/custom_schema.py](file:///e:/developer/ERP_V2_Postgres/backend/database/custom_schema.py)
 - AI 智能合同条款提取服务: [backend/services/ai_service.py](file:///e:/developer/ERP_V2_Postgres/backend/services/ai_service.py)
@@ -123,12 +126,14 @@ graph TD
 - 项目级联更新服务: [backend/services/project_service.py](file:///e:/developer/ERP_V2_Postgres/backend/services/project_service.py)
 
 ### 🖥️ 前端 Streamlit 界面层
+
 - 首页及 KPI 大屏汇总: [streamlit_lab/app.py](file:///e:/developer/ERP_V2_Postgres/streamlit_lab/app.py)
 - 动态表单及时光机组件库: [streamlit_lab/components.py](file:///e:/developer/ERP_V2_Postgres/streamlit_lab/components.py)
 - 侧边栏导航控制: [streamlit_lab/sidebar_manager.py](file:///e:/developer/ERP_V2_Postgres/streamlit_lab/sidebar_manager.py)
 - 在线改配置与 SQL 终端: [streamlit_lab/debug_kit.py](file:///e:/developer/ERP_V2_Postgres/streamlit_lab/debug_kit.py)
 
 ### 📂 主要业务功能网页
+
 - 主合同业务管理页: [主合同管理.py](file:///e:/developer/ERP_V2_Postgres/streamlit_lab/pages/02_🛠️_主合同管理.py)
 - 分包及背靠背限额管理页: [分包合同管理.py](file:///e:/developer/ERP_V2_Postgres/streamlit_lab/pages/03_🛠️_分包合同管理.py)
 - 利润及现金流可视化分析页: [数据分析.py](file:///e:/developer/ERP_V2_Postgres/streamlit_lab/pages/04_📊_数据分析.py)

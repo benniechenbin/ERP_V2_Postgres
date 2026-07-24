@@ -1,20 +1,20 @@
 from backend.database import db_engine
-from backend.database.schema import (
-    get_table_columns,
-    get_table_schema,
-    get_all_data_tables,
-)
 from backend.database.crud_base import (
-    upsert_dynamic_record,
-    fetch_dynamic_records,
-    delete_dynamic_record,
     check_project_existence,
+    delete_dynamic_record,
+    fetch_dynamic_records,
     generate_biz_code,
+    upsert_dynamic_record,
 )
 from backend.database.crud_sys import (
-    soft_delete_project,
-    restore_project,
     get_deleted_projects,
+    restore_project,
+    soft_delete_project,
+)
+from backend.database.schema import (
+    get_all_data_tables,
+    get_table_columns,
+    get_table_schema,
 )
 
 
@@ -50,7 +50,7 @@ def test_crud_dynamic_records():
         "extra_field_abc": "这是溢出JSON字段的数据",  # 模拟扩展字段存入 extra_props
     }
 
-    success, msg = upsert_dynamic_record("main_contract", data)
+    success, _msg = upsert_dynamic_record("main_contract", data)
     assert success is True
 
     # 2. 查询验证
@@ -96,7 +96,7 @@ def test_crud_dynamic_records():
         "project_name": "测试项目D1-已修改",
         "contract_amount": 6000000.0,
     }
-    success_up, msg_up = upsert_dynamic_record(
+    success_up, _msg_up = upsert_dynamic_record(
         "main_contract", update_data, record_id=record_id, operator_name="测试修改员"
     )
     assert success_up is True
@@ -116,7 +116,7 @@ def test_crud_dynamic_records():
     assert exist_check_fake["exists"] is False
 
     # 6. 物理删除测试
-    del_success, del_msg = delete_dynamic_record("main_contract", record_id)
+    del_success, _del_msg = delete_dynamic_record("main_contract", record_id)
     assert del_success is True
 
 
@@ -124,7 +124,7 @@ def test_soft_delete_and_restore():
     # 1. 写入待删除的数据
     biz_code = "TEST-DB-002"
     data = {"biz_code": biz_code, "project_name": "待回收站项目", "manager": "李删除"}
-    success, msg = upsert_dynamic_record("main_contract", data)
+    success, _msg = upsert_dynamic_record("main_contract", data)
     assert success is True
 
     df = fetch_dynamic_records("main_contract", "待回收站项目")
@@ -132,7 +132,7 @@ def test_soft_delete_and_restore():
     record_id = int(df.iloc[0]["id"])
 
     # 2. 软删除
-    soft_success, soft_msg = soft_delete_project(record_id, "biz_main_contracts", operator_name="测试审计官")
+    soft_success, _soft_msg = soft_delete_project(record_id, "biz_main_contracts", operator_name="测试审计官")
     assert soft_success is True
 
     # 确认查询时查不出来了
@@ -145,7 +145,7 @@ def test_soft_delete_and_restore():
     assert biz_code in deleted_codes
 
     # 3. 恢复项目
-    restore_success, restore_msg = restore_project(record_id, "biz_main_contracts")
+    restore_success, _restore_msg = restore_project(record_id, "biz_main_contracts")
     assert restore_success is True
 
     # 确认重新出现在正常列表

@@ -1,6 +1,7 @@
-import pandas as pd
 import re
 from datetime import datetime
+
+import pandas as pd
 
 from backend.config import config_manager
 from backend.observability.logger import sys_logger
@@ -84,13 +85,11 @@ def drop_serial_number_columns(df):
     if df is None or df.empty:
         return df
     cfg = config_manager.load_data_rules().get("cleaning_rules", {})
-    keywords = set([k.lower() for k in cfg.get("serial_number_keywords", ["序号", "no.", "s/n"])])
+    keywords = {k.lower() for k in cfg.get("serial_number_keywords", ["序号", "no.", "s/n"])}
     cols_to_drop = []
     for col in df.columns:
         c_clean = str(col).strip().lower()
-        if c_clean in keywords:
-            cols_to_drop.append(col)
-        elif c_clean.replace(".", "") in ["no", "sn", "id"] and len(str(col)) < 5:
+        if c_clean in keywords or c_clean.replace(".", "") in ["no", "sn", "id"] and len(str(col)) < 5:
             cols_to_drop.append(col)
     if cols_to_drop:
         return df.drop(columns=cols_to_drop, errors="ignore")
@@ -110,7 +109,7 @@ def _ffill_attributes_only(df):
     for c in targets:
         try:
             df[c] = df[c].ffill()
-        except Exception as e:
+        except (AttributeError, TypeError, ValueError) as e:
             sys_logger.debug(f"清洗单元格异常: {e}")
     return df
 
@@ -170,10 +169,7 @@ def clean_excel(file_obj, strategies=None, header_overrides=None):
         manual_idx = None
         if header_overrides and sheet in header_overrides:
             manual_idx = header_overrides[sheet]
-        if manual_idx is not None:
-            best_idx = manual_idx
-        else:
-            best_idx = suggest_header_row_by_density(raw)
+        best_idx = manual_idx if manual_idx is not None else suggest_header_row_by_density(raw)
 
         if best_idx < len(raw):
             headers = _build_headers(raw, best_idx)

@@ -155,10 +155,7 @@ def build_env_example(
     else:
         lines = []
 
-    if path_as_posix is None and target is not None:
-        use_posix_paths = target.path_as_posix
-    else:
-        use_posix_paths = bool(path_as_posix)
+    use_posix_paths = target.path_as_posix if path_as_posix is None and target is not None else bool(path_as_posix)
 
     for field_name, field in settings_class.model_fields.items():
         if field.description:

@@ -8,13 +8,14 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
-import streamlit as st
-import pandas as pd
-from backend.database import crud
-from backend.config import config_manager as cfg
-from sidebar_manager import render_sidebar
-import debug_kit
 import components as ui
+import debug_kit
+import pandas as pd
+import streamlit as st
+from sidebar_manager import render_sidebar
+
+from backend.config import config_manager as cfg
+from backend.database import crud
 
 # --- 页面基础配置 ---
 st.set_page_config(layout="wide", page_title="往来单位库")
@@ -117,7 +118,7 @@ st.divider()
 # --- 🟢 V2.0 查询逻辑 (纯净版，只看存活数据) ---
 try:
     df_result = crud.fetch_dynamic_records(selected_model, keyword)
-except Exception as e:
+except Exception as e:  # noqa: BLE001 - the top-level Streamlit page reports unexpected integration failures.
     st.error(f"查询失败: {e}")
     df_result = pd.DataFrame()
 

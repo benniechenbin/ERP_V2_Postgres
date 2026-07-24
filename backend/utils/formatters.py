@@ -1,8 +1,10 @@
-import pandas as pd
-from datetime import datetime
 import re
-import numpy as np
+import time
+from datetime import date, datetime
 from decimal import Decimal
+
+import numpy as np
+import pandas as pd
 
 
 # ==========================================
@@ -14,7 +16,7 @@ def humanize_date(date_obj):
         return "-"
     try:
         return date_obj.strftime("%Y年%m月%d日")
-    except Exception:
+    except (AttributeError, TypeError, ValueError):
         return str(date_obj)
 
 
@@ -52,12 +54,15 @@ def parse_date_cell(val):
     ]
     for fmt in fmts:
         try:
-            dt = datetime.strptime(s, fmt)
-            if fmt in ["%Y.%m", "%Y年%m月"]:
-                return dt.strftime("%Y-%m-01")
-            return dt.strftime("%Y-%m-%d")
-        except Exception:
+            parsed = time.strptime(s, fmt)
+        except ValueError:
+            parsed = None
+        if parsed is None:
             continue
+        parsed_date = date(parsed.tm_year, parsed.tm_mon, parsed.tm_mday)
+        if fmt in ["%Y.%m", "%Y年%m月"]:
+            return parsed_date.strftime("%Y-%m-01")
+        return parsed_date.strftime("%Y-%m-%d")
     return None
 
 
@@ -82,7 +87,7 @@ def format_wan(amount):
     try:
         val = float(amount) / 10000
         return f"{val:,.1f} 万"
-    except Exception:
+    except (TypeError, ValueError):
         return "0 万"
 
 

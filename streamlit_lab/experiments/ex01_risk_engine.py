@@ -1,5 +1,6 @@
-import streamlit as st
 import pandas as pd
+import streamlit as st
+
 import backend.config.config_manager as cfg
 
 # ==============================================================================
@@ -81,10 +82,10 @@ def execute_risk_filter(df: pd.DataFrame, rule_config: dict) -> pd.DataFrame:
 
         return filtered_df
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - rule expression evaluation is an intentional isolation boundary.
         # 捕获逻辑错误（比如字段名写错、除以零），抛出更友好的异常
         # 实际迁移时，这里可以记录日志
-        raise ValueError(f"规则执行失败: {str(e)}")
+        raise ValueError(f"规则执行失败: {e!s}") from e
 
 
 # ==============================================================================
@@ -282,7 +283,7 @@ def run(df, conn):
             query_debug = _parse_rule_to_query_string(rule_config)
             st.info(f"Generated Query: `{query_debug}`")
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - Streamlit renders unexpected rule-engine failures without crashing.
         st.error("💥 规则运算出错")
         st.warning(f"错误详情: {e}")
         st.markdown("""

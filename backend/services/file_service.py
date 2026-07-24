@@ -1,5 +1,8 @@
 from pathlib import Path
-from backend.database.db_engine import get_connection, UPLOAD_DIR
+
+from backend.database.db_engine import DATA_ACCESS_EXCEPTIONS, UPLOAD_DIR, get_connection
+
+FILE_SERVICE_EXCEPTIONS = DATA_ACCESS_EXCEPTIONS + (OSError,)
 
 
 def save_attachment(biz_code, uploaded_file, source_table, file_category="unknown"):
@@ -42,7 +45,7 @@ def save_attachment(biz_code, uploaded_file, source_table, file_category="unknow
         # 🚀 预留钩子：如果是合同文本，且配置了 AI 自动解析，未来在这里向消息队列发送 AI 解析任务！
 
         return True, "附件归档成功"
-    except Exception as e:
+    except FILE_SERVICE_EXCEPTIONS as e:
         if conn:
             conn.rollback()
         return False, str(e)

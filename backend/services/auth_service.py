@@ -1,6 +1,8 @@
 import re
-from werkzeug.security import generate_password_hash, check_password_hash
-from backend.database.db_engine import get_connection, execute_raw_sql
+
+from werkzeug.security import check_password_hash, generate_password_hash
+
+from backend.database.db_engine import DATA_ACCESS_EXCEPTIONS, execute_raw_sql, get_connection
 
 # 🟢 安全防线 1：角色白名单 (防抓包越权篡改)
 # 未来换新系统，只需修改这个列表即可
@@ -60,9 +62,9 @@ def create_system_user(username: str, password: str, role: str) -> tuple[bool, s
             )
         conn.commit()
         return True, "账号创建成功"
-    except Exception as e:
+    except DATA_ACCESS_EXCEPTIONS as e:
         conn.rollback()
-        return False, f"创建失败: {str(e)}"
+        return False, f"创建失败: {e!s}"
     finally:
         conn.close()
 
@@ -123,8 +125,8 @@ def verify_user_login(username: str, password: str) -> tuple[bool, str, dict]:
                 return True, "登录成功", user_info
             else:
                 return False, "密码错误", {}
-    except Exception as e:
-        return False, f"验证过程出错: {str(e)}", {}
+    except DATA_ACCESS_EXCEPTIONS as e:
+        return False, f"验证过程出错: {e!s}", {}
     finally:
         if conn:
             conn.close()

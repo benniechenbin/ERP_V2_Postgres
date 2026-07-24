@@ -1,9 +1,10 @@
+import importlib.util  # 🟢 引入动态加载专用库
+import os
 import sys
 from pathlib import Path
-import os
-import streamlit as st
-import importlib.util  # 🟢 引入动态加载专用库
+
 import pandas as pd
+import streamlit as st
 
 # ==========================================
 # 1. 📂 绝对路径定位 (确保在任何环境下都能找到文件夹)
@@ -16,8 +17,9 @@ ROOT_DIR = HOST_DIR.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from backend import database as db
 import debug_kit
+
+from backend import database as db
 
 # ==========================================
 # 2. 页面配置与门禁
@@ -45,7 +47,7 @@ try:
         f[:-3] for f in os.listdir(EXP_DIR_PATH) if f.startswith("ex") and f.endswith(".py") and f != "__init__.py"
     ]
     external_files.sort()
-except Exception as e:
+except Exception as e:  # noqa: BLE001 - dynamic experiment discovery is an intentional plugin boundary.
     st.error(f"扫描插件目录失败: {e}")
 
 # 🟢 构建选项列表 (内置主页 + 外部卡带)
@@ -89,7 +91,7 @@ def run_lab_dashboard(conn, all_tables_list, plugins):
                 # 快速统计表行数
                 count = pd.read_sql(f'SELECT COUNT(*) FROM "{tbl}"', conn).iloc[0, 0]
                 table_stats.append({"数据表名称": tbl, "记录行数": count, "状态": "✅ 正常"})
-            except Exception:
+            except Exception:  # noqa: BLE001 - each experimental table probe is isolated from the page.
                 table_stats.append({"数据表名称": tbl, "记录行数": "-", "状态": "❌ 读取失败"})
 
         st.dataframe(pd.DataFrame(table_stats), width="stretch", hide_index=True)

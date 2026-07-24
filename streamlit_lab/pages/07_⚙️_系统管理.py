@@ -1,21 +1,23 @@
 # 文件位置: streamlit_lab/pages/07_⚙️_系统管理.py
+import json
 import sys
 from pathlib import Path
-import json
 
 # 🟢 寻路魔法
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
-import streamlit as st
+import debug_kit
 import pandas as pd
+import streamlit as st
+from sidebar_manager import render_sidebar
 from werkzeug.security import generate_password_hash
 
-# 接入新底座
-from backend.database.db_engine import get_connection, execute_raw_sql
 from backend.config import config_manager as cfg
-from sidebar_manager import render_sidebar
-import debug_kit
+
+# 接入新底座
+from backend.database.db_engine import DATA_ACCESS_EXCEPTIONS, execute_raw_sql, get_connection
+from backend.observability.logger import sys_logger
 
 st.set_page_config(page_title="系统管理控制台", page_icon="⚙️", layout="wide")
 render_sidebar()
@@ -63,7 +65,7 @@ def create_user_dialog():
                 conn.commit()
                 st.toast("✅ 账号创建成功！")
                 st.rerun()
-            except Exception as e:
+            except DATA_ACCESS_EXCEPTIONS as e:
                 conn.rollback()
                 st.error(f"创建失败: {e}")
             finally:
@@ -100,7 +102,7 @@ with tab_users:
 
     if success and not df_users.empty:
         # 添加布尔控制列
-        df_users["is_active"] = df_users["status"].apply(lambda x: True if x == "active" else False)
+        df_users["is_active"] = df_users["status"].apply(lambda x: x == "active")
         df_users.insert(0, "☑️ 选中", False)
 
         edited_users = st.data_editor(
@@ -145,7 +147,7 @@ with tab_users:
                 conn.commit()
                 st.toast("✅ 账号状态已更新")
                 st.rerun()
-            except Exception as e:
+            except DATA_ACCESS_EXCEPTIONS as e:
                 st.error(f"更新失败: {e}")
             finally:
                 conn.close()
@@ -221,8 +223,8 @@ with tab_trash:
                                 "操作人": row[4] or "未知",
                             }
                         )
-                except Exception:
-                    pass  # 表可能不存在，跳过
+                except DATA_ACCESS_EXCEPTIONS as exc:
+                    sys_logger.warning(f"回收站跳过不可用表 {t_name}: {exc}")
     finally:
         conn.close()
 
@@ -246,26 +248,25 @@ with tab_trash:
         )
 
         selected_trash = edited_trash[edited_trash["☑️ 选中"]]
-        if not selected_trash.empty:
-            if st.button("♻️ 还原选中数据", type="primary"):
-                conn = get_connection()
-                try:
-                    for _, row in selected_trash.iterrows():
-                        t_name = row["物理表"]
-                        r_id = row["ID"]
-                        with conn.cursor() as cur:
-                            cur.execute(
-                                f'UPDATE "{t_name}" SET deleted_at = NULL, deleted_by = NULL WHERE id = %s',
-                                (r_id,),
-                            )
-                    conn.commit()
-                    st.success("✅ 数据已成功还原，并重返业务列表！")
-                    st.rerun()
-                except Exception as e:
-                    conn.rollback()
-                    st.error(f"还原失败: {e}")
-                finally:
-                    conn.close()
+        if not selected_trash.empty and st.button("♻️ 还原选中数据", type="primary"):
+            conn = get_connection()
+            try:
+                for _, row in selected_trash.iterrows():
+                    t_name = row["物理表"]
+                    r_id = row["ID"]
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            f'UPDATE "{t_name}" SET deleted_at = NULL, deleted_by = NULL WHERE id = %s',
+                            (r_id,),
+                        )
+                conn.commit()
+                st.success("✅ 数据已成功还原，并重返业务列表！")
+                st.rerun()
+            except DATA_ACCESS_EXCEPTIONS as e:
+                conn.rollback()
+                st.error(f"还原失败: {e}")
+            finally:
+                conn.close()
     else:
         st.success("🎉 回收站目前空空如也。")
 
@@ -315,7 +316,7 @@ with tab_audit:
         detail_json = df_audit[df_audit["biz_code"] == biz_sel].iloc[0]["diff_data"]
         try:
             st.json(json.loads(detail_json))
-        except Exception:
+        except (json.JSONDecodeError, TypeError):
             st.write(detail_json)
     else:
         st.info("暂无审计日志。")
@@ -383,7 +384,7 @@ with tab_job:
             err_json = failed_jobs[failed_jobs["id"] == err_sel].iloc[0]["error_details"]
             try:
                 st.json(json.loads(err_json))
-            except Exception:
+            except (json.JSONDecodeError, TypeError):
                 st.write(err_json)
     else:
         st.info("暂无后台任务执行记录。")

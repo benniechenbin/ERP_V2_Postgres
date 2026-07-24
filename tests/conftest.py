@@ -1,8 +1,11 @@
+from contextlib import suppress
+
 import pytest
-from backend.config.settings import settings
-import backend.database.db_engine as db_engine
-from backend.database.schema import sync_database_schema
 from sqlalchemy import create_engine, event
+
+from backend.config.settings import settings
+from backend.database import db_engine
+from backend.database.schema import sync_database_schema
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -17,10 +20,8 @@ def setup_test_database():
 
     # 清理可能残留的数据库文件以保持干净测试环境
     if db_path.exists():
-        try:
+        with suppress(OSError):
             db_path.unlink()
-        except Exception:
-            pass
 
     DATABASE_URL = f"sqlite:///{db_path}"
     test_engine = create_engine(DATABASE_URL)
@@ -44,16 +45,12 @@ def setup_test_database():
 
     # 尽可能删除临时生成的各种 sqlite 文件 (.db, .db-wal, .db-shm)
     if db_path.exists():
-        try:
+        with suppress(OSError):
             db_path.unlink()
-        except Exception:
-            pass
 
     for f in db_path.parent.glob("test_temp.db*"):
-        try:
+        with suppress(OSError):
             f.unlink()
-        except Exception:
-            pass
 
 
 @pytest.fixture(autouse=True)
@@ -67,18 +64,16 @@ def cleanup_database_tables():
             tables = [row[0] for row in cursor.fetchall()]
             for table in tables:
                 cursor.execute(f'DELETE FROM "{table}"')
-                try:
+                with suppress(*db_engine.DATA_ACCESS_EXCEPTIONS):
                     cursor.execute("DELETE FROM sqlite_sequence WHERE name = ?", (table,))
-                except Exception:
-                    pass
         else:
             cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
             tables = [row[0] for row in cursor.fetchall()]
             for table in tables:
                 cursor.execute(f'TRUNCATE TABLE "{table}" RESTART IDENTITY CASCADE')
         conn.commit()
-    except Exception as e:
-        print(f"Cleanup database tables failed: {e}")
+    except db_engine.DATA_ACCESS_EXCEPTIONS as e:
+        pytest.fail(f"Cleanup database tables failed: {e}")
     finally:
         conn.close()
     yield

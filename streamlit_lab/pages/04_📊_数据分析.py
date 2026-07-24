@@ -7,21 +7,22 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
-import streamlit as st
+from datetime import date, datetime
+
+import components as ui
+import debug_kit
 import pandas as pd
-from datetime import datetime
 import plotly.express as px
+import sidebar_manager
+import streamlit as st
 
 # 接入新底座
 from backend import database as db
 from backend.config import config_manager as cfg
-from backend.utils import formatters as ut
+from backend.config.settings import APP_TIMEZONE
+from backend.database.db_engine import DATA_ACCESS_EXCEPTIONS
 from backend.observability.logger import sys_logger
-
-import sidebar_manager
-import debug_kit
-import components as ui
-
+from backend.utils import formatters as ut
 
 st.set_page_config(page_title="经营分析", page_icon="📊", layout="wide")
 sidebar_manager.render_sidebar()
@@ -55,7 +56,7 @@ def load_analysis_data():
                 if not tmp_df.empty:
                     tmp_df["origin_table"] = tbl
                     df_list.append(tmp_df)
-            except Exception as e:
+            except DATA_ACCESS_EXCEPTIONS as e:
                 sys_logger.exception(f"读取表 {tbl} 失败: {e}")
 
         if not df_list:
@@ -85,7 +86,7 @@ def load_analysis_data():
 
         # 1. 强转日期
         df["dt_sign"] = pd.to_datetime(df["sign_date"], errors="coerce")
-        df["sign_year"] = df["dt_sign"].dt.year.fillna(datetime.now().year).astype(int)
+        df["sign_year"] = df["dt_sign"].dt.year.fillna(datetime.now(APP_TIMEZONE).year).astype(int)
 
         # 2. 强转金额 (使用你神级的 ut.safe_float)
         df["val_contract"] = df["contract_amount"].apply(ut.safe_float)
@@ -120,15 +121,15 @@ if df_all.empty:
     st.error(f"⚠️ 无法加载数据: {msg}")
     st.stop()
 
-current_year = datetime.now().year
+current_year = datetime.now(APP_TIMEZONE).year
 
 st.markdown("##### ⏳ 分析周期设定")
 with st.container(border=True):
     c_start, c_end, _ = st.columns([1, 1, 2])
     with c_start:
-        start_date = st.date_input("📅 起始时间", value=datetime(current_year, 1, 1).date())
+        start_date = st.date_input("📅 起始时间", value=date(current_year, 1, 1))
     with c_end:
-        end_date = st.date_input("📅 截止时间", value=datetime.now().date())
+        end_date = st.date_input("📅 截止时间", value=datetime.now(APP_TIMEZONE).date())
 
 st.divider()
 
