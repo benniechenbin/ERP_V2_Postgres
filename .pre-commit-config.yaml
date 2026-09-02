@@ -1,6 +1,37 @@
 # See https://pre-commit.com for more information
 # See https://pre-commit.com/hooks.html for more hooks
+# Pre-commit configuration structured by 5 pipeline stages:
+# Stage 1 — Fast Fail          (Cheap, non-mutating checks & security scan)
+# Stage 2 — Generate           (Codegen & derived file generation)
+# Stage 3 — Semantic Auto Fix  (Linter autofix, formatting, doc autofix)
+# Stage 4 — Text Finalization  (Line endings, trailing whitespace, EOF newline)
+# Stage 5 — Deep Validation    (Type checking & deep analysis)
+
 repos:
+  # =========================================================================
+  # Stage 1 — Fast Fail
+  # =========================================================================
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.0
+    hooks:
+      - id: gitleaks
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-merge-conflict
+        args: [--assume-in-merge]
+      - id: check-added-large-files
+      - id: detect-private-key
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+      - id: check-ast
+      - id: debug-statements
+
+  # =========================================================================
+  # Stage 2 — Generate
+  # =========================================================================
   - repo: local
     hooks:
       - id: generate-env-example
@@ -10,10 +41,22 @@ repos:
         pass_filenames: false
         files: ^(backend/config/settings\.py|scripts/generate_env_example\.py|\.env\.example)$
 
-  - repo: https://github.com/gitleaks/gitleaks
-    rev: v8.30.0
+  # =========================================================================
+  # Stage 3 — Semantic Auto Fix
+  # =========================================================================
+  - repo: local
     hooks:
-      - id: gitleaks
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check --fix
+        language: system
+        types_or: [python, pyi]
+
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format
+        language: system
+        types_or: [python, pyi, jupyter, markdown]
 
   - repo: https://github.com/DavidAnson/markdownlint-cli2
     rev: v0.23.2
@@ -22,32 +65,21 @@ repos:
         args:
           - --fix
 
+  # =========================================================================
+  # Stage 4 — Text Finalization
+  # =========================================================================
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
       - id: trailing-whitespace
         args: [--markdown-linebreak-ext=md]
       - id: end-of-file-fixer
-      - id: check-toml
-      - id: check-yaml
-      - id: check-json
-      - id: debug-statements
-      - id: check-ast
-      - id: check-added-large-files
-      - id: detect-private-key
-      - id: check-merge-conflict
-        args: [--assume-in-merge]
       - id: mixed-line-ending
         args: [--fix=lf]
 
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.1
-    hooks:
-      - id: ruff-check
-        args: [--fix]
-      - id: ruff-format
-        types_or: [python, pyi, jupyter, markdown]
-
+  # =========================================================================
+  # Stage 5 — Deep Validation
+  # =========================================================================
   - repo: local
     hooks:
       - id: mypy
@@ -55,4 +87,4 @@ repos:
         entry: uv run mypy backend
         language: system
         pass_filenames: false
-        always_run: true
+        files: ^(backend/|pyproject\.toml)
