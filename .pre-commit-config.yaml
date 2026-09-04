@@ -29,6 +29,22 @@ repos:
       - id: check-ast
       - id: debug-statements
 
+  - repo: local
+    hooks:
+      - id: docs-check
+        name: check mandatory docs
+        entry: uv run python scripts/ci.py docs-check
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: version-check
+        name: check project version
+        entry: uv run python scripts/ci.py version-check
+        language: system
+        pass_filenames: false
+        files: ^pyproject\.toml$
+
   # =========================================================================
   # Stage 2 — Generate
   # =========================================================================

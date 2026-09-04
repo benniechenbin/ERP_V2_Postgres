@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -226,8 +227,9 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv or sys.argv[1:])
     targets = _selected_targets(args.project)
+    is_check = args.check or os.getenv("CI") == "true"
 
-    if args.check:
+    if is_check:
         checks_passed = all(check_env_example(target, output_file=args.output) for target in targets)
         return 0 if checks_passed else 1
 
